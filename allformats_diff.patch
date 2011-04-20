@@ -1,0 +1,13 @@
+diff --git a/libavformat/allformats.c b/libavformat/allformats.c
+index bca968a..9440402 100644
+--- a/libavformat/allformats.c
++++ b/libavformat/allformats.c
+@@ -220,7 +220,7 @@ void av_register_all(void)
+     REGISTER_MUXER    (WEBM, webm);
+     REGISTER_DEMUXER  (WSAUD, wsaud);
+     REGISTER_DEMUXER  (WSVQA, wsvqa);
+-    REGISTER_DEMUXER  (WTV, wtv);
++    REGISTER_MUXDEMUX (WTV, wtv);
+     REGISTER_DEMUXER  (WV, wv);
+     REGISTER_DEMUXER  (XA, xa);
+     REGISTER_DEMUXER  (YOP, yop);

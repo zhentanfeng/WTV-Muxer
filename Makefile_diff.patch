@@ -1,0 +1,12 @@
+diff --git a/libavformat/Makefile b/libavformat/Makefile
+index c521cd3..f9a3830 100644
+--- a/libavformat/Makefile
++++ b/libavformat/Makefile
+@@ -296,6 +296,7 @@ OBJS-$(CONFIG_WEBM_MUXER)                += matroskaenc.o matroska.o \
+ OBJS-$(CONFIG_WSAUD_DEMUXER)             += westwood.o
+ OBJS-$(CONFIG_WSVQA_DEMUXER)             += westwood.o
+ OBJS-$(CONFIG_WTV_DEMUXER)               += wtv.o asf.o asfdec.o mpegts.o riff.o
++OBJS-$(CONFIG_WTV_MUXER)                 += wtvenc.o asf.o riff.o
+ OBJS-$(CONFIG_WV_DEMUXER)                += wv.o apetag.o
+ OBJS-$(CONFIG_XA_DEMUXER)                += xa.o
+ OBJS-$(CONFIG_YOP_DEMUXER)               += yop.o
