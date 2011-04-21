@@ -39,6 +39,9 @@ static const uint8_t timeline_le16[] =
     {'t'_'i'_'m'_'e'_'l'_'i'_'n'_'e', 0};
 #undef _
 
+#define MEDIASUBTYPE_BASE_GUID \
+    0x00,0x00,0x10,0x00,0x80,0x00,0x00,0xAA,0x00,0x38,0x9B,0x71
+
 static const ff_asf_guid wtv_guid =
     {0xB7,0xD8,0x00,0x20,0x37,0x49,0xDA,0x11,0xA6,0x4E,0x00,0x07,0xE9,0x5E,0xAD,0x8D};
 static const ff_asf_guid sub_wtv_guid =
@@ -47,6 +50,14 @@ static const ff_asf_guid data_guid =
     {0x95,0xC3,0xD2,0xC2,0x7E,0x9A,0xDA,0x11,0x8B,0xF7,0x00,0x07,0xE9,0x5E,0xAD,0x8D};
 static const ff_asf_guid dir_entry_guid =
     {0x92,0xB7,0x74,0x91,0x59,0x70,0x70,0x44,0x88,0xDF,0x06,0x3B,0x82,0xCC,0x21,0x3D};
+static const ff_asf_guid stream_guid =
+    {0xED,0xA4,0x13,0x23,0x2D,0xBF,0x4F,0x45,0xAD,0x8A,0xD9,0x5B,0xA7,0xF9,0x1F,0xEE};
+static const ff_asf_guid format_none =
+    {0xD6,0x17,0x64,0x0F,0x18,0xC3,0xD0,0x11,0xA4,0x3F,0x00,0xA0,0xC9,0x22,0x31,0x96};
+static const ff_asf_guid mediatype_audio =
+    {'a','u','d','s',MEDIASUBTYPE_BASE_GUID};
+static const ff_asf_guid mediatype_video =
+    {'v','i','d','s',MEDIASUBTYPE_BASE_GUID};
 
 typedef struct WtvContext {
     int64_t init_root_pos;
@@ -55,6 +66,23 @@ typedef struct WtvContext {
     int64_t timeline_start_pos;
     int depth;
 } WtvContext;
+
+typedef struct {
+    enum CodecID id;
+    ff_asf_guid guid;
+} AVCodecGuid;
+
+static const AVCodecGuid audio_guids[] = {
+    {CODEC_ID_AC3,        {0x2C,0x80,0x6D,0xE0,0x46,0xDB,0xCF,0x11,0xB4,0xD1,0x00,0x80,0x5F,0x6C,0xBB,0xEA}},
+    {CODEC_ID_EAC3,       {0xAF,0x87,0xFB,0xA7,0x02,0x2D,0xFB,0x42,0xA4,0xD4,0x05,0xCD,0x93,0x84,0x3B,0xDD}},
+    {CODEC_ID_MP2,        {0x2B,0x80,0x6D,0xE0,0x46,0xDB,0xCF,0x11,0xB4,0xD1,0x00,0x80,0x5F,0x6C,0xBB,0xEA}},
+    {CODEC_ID_NONE}
+};
+
+static const AVCodecGuid video_guids[] = {
+    {CODEC_ID_MPEG2VIDEO, {0x26,0x80,0x6D,0xE0,0x46,0xDB,0xCF,0x11,0xB4,0xD1,0x00,0x80,0x5F,0x6C,0xBB,0xEA}},
+    {CODEC_ID_NONE}
+};
 
 static int wtv_write_pad(AVIOContext *pb, int size)
 {
@@ -67,6 +95,49 @@ static void put_guid(AVIOContext *s, const ff_asf_guid *g)
 {
     assert(sizeof(*g) == 16);
     avio_write(s, *g, sizeof(*g));
+}
+
+static int wtv_write_stream_info(AVFormatContext *s)
+{
+    AVIOContext *pb = s->pb;
+    int chunk_len = 0;
+    int i = 0;
+
+    for (; i < s->nb_streams; i++) {
+        AVStream *st = s->streams[i];
+        int pad;
+
+        put_guid(pb, &stream_guid);
+         // FIXME!chun_len should be caculated, for simlify we set some fixed value here.
+        chunk_len = 124;
+        avio_wl32(pb, chunk_len);
+        avio_wl32(pb, st->index);
+        wtv_write_pad(pb, 8);
+        wtv_write_pad(pb, 28);
+
+        if(st->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
+            put_guid(pb, &mediatype_video);
+            put_guid(pb, &video_guids[0].guid);
+            wtv_write_pad(pb, 12);
+            put_guid(pb,& format_none);
+            avio_wl32(pb, 0);
+        } else if (st->codec->codec_type == AVMEDIA_TYPE_AUDIO) {
+            put_guid(pb, &mediatype_audio);
+            // use st->codec->codec_id to determine the GUID. we set a temp value here.
+            put_guid(pb, &audio_guids[2].guid); // sub media type, the code ID should match the GUID.
+            wtv_write_pad(pb, 12);
+            put_guid(pb,& format_none); // set format_none
+            avio_wl32(pb, 0); // since set the format_none, the size should be zero. FIXME
+        } else {
+            av_log(s, AV_LOG_ERROR, "unknown codec_type (0x%x)\n", st->codec->codec_type);
+            return -1;
+        }
+
+        pad = WTV_PAD8(chunk_len) - chunk_len;
+        wtv_write_pad(pb, pad);
+    }
+    
+    return 0;
 }
 
 static int wtv_write_header(AVFormatContext *s)
@@ -87,6 +158,9 @@ static int wtv_write_header(AVFormatContext *s)
     pad = (1 << WTV_SECTOR_BITS) - avio_tell(pb);
     wtv_write_pad(pb, pad);
     wctx->timeline_start_pos = avio_tell(pb);
+
+    // write stream metadata
+    wtv_write_stream_info(s);
     return 0;
 }
 
@@ -163,6 +237,7 @@ static int wtv_write_sector(AVFormatContext *s, int nb_sectors, int depth)
         // TODO
     } else {
         av_log(s, AV_LOG_ERROR, "unsupported file allocation table depth (0x%x)\n", wctx->depth);
+        return -1;
     }
 
     pad = WTV_SECTOR_SIZE - (avio_tell(pb) % WTV_SECTOR_SIZE);
@@ -239,7 +314,8 @@ AVOutputFormat ff_wtv_muxer = {
     NULL,
     "wtv",
     sizeof(WtvContext),
-    CODEC_ID_PCM_S16LE,
+    //CODEC_ID_PCM_S16LE,
+    CODEC_ID_MP2,
     CODEC_ID_MPEG2VIDEO,
     wtv_write_header,
     wtv_write_packet,
