@@ -121,6 +121,7 @@ static int wtv_write_stream_info(AVFormatContext *s)
             wtv_write_pad(pb, 12);
             put_guid(pb,& format_none);
             avio_wl32(pb, 0);
+            av_set_pts_info(st, 64, 1, st->codec->time_base.den);
         } else if (st->codec->codec_type == AVMEDIA_TYPE_AUDIO) {
             put_guid(pb, &mediatype_audio);
             // use st->codec->codec_id to determine the GUID. we set a temp value here.
@@ -128,6 +129,7 @@ static int wtv_write_stream_info(AVFormatContext *s)
             wtv_write_pad(pb, 12);
             put_guid(pb,& format_none); // set format_none
             avio_wl32(pb, 0); // since set the format_none, the size should be zero. FIXME
+            av_set_pts_info(st, 64, 1, st->codec->sample_rate);
         } else {
             av_log(s, AV_LOG_ERROR, "unknown codec_type (0x%x)\n", st->codec->codec_type);
             return -1;
