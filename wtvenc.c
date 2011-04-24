@@ -238,7 +238,6 @@ static int wtv_write_trailer(AVFormatContext *s)
     int depth;
     int sector_bits;
     int root_size;
-    uint64_t file_len;
     int nb_sectors;
 
     int64_t end_pos = avio_tell(pb);
