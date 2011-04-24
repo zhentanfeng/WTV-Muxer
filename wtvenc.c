@@ -61,8 +61,6 @@ static const ff_asf_guid mediatype_video =
 
 typedef struct WtvContext {
     int64_t init_root_pos;
-    int64_t sector_pos;
-    int64_t fat_table_pos;
     int64_t timeline_start_pos;
 } WtvContext;
 
@@ -181,9 +179,8 @@ static int write_packet(AVFormatContext *s, AVPacket *pkt)
     return 0;
 }
 
-static int write_root_table(AVFormatContext *s, uint64_t file_length, int sector_bits, int depth)
+static int write_root_table(AVFormatContext *s, uint64_t file_length, int sector_bits, int depth, int64_t sector_pos, int64_t fat_table_pos)
 {
-    WtvContext *wctx = s->priv_data;
     AVIOContext *pb = s->pb;
     int size, pad;
 
@@ -198,10 +195,10 @@ static int write_root_table(AVFormatContext *s, uint64_t file_length, int sector
     write_pad(pb, 4);
     avio_write(pb, timeline_le16, sizeof(timeline_le16)); // name
 
-    avio_wl32(pb, wctx->fat_table_pos >> WTV_SECTOR_BITS); // first sector pointer
+    avio_wl32(pb, fat_table_pos >> WTV_SECTOR_BITS); // first sector pointer
     avio_wl32(pb, depth);
 
-    size = avio_tell(pb) - wctx->sector_pos;
+    size = avio_tell(pb) - sector_pos;
     pad = WTV_SECTOR_SIZE- size;
     write_pad(pb, pad);
 
@@ -239,6 +236,7 @@ static int write_trailer(AVFormatContext *s)
     int sector_bits;
     int root_size;
     int nb_sectors;
+    int64_t sector_pos, fat_table_pos;
 
     int64_t end_pos = avio_tell(pb);
     int64_t timeline_file_size = (end_pos - wctx->timeline_start_pos);
@@ -278,21 +276,21 @@ static int write_trailer(AVFormatContext *s)
 
     //write fat table
     if (depth > 0) {
-        wctx->fat_table_pos = avio_tell(pb);
+        fat_table_pos = avio_tell(pb);
         write_sector(s, nb_sectors, sector_bits, depth);
     } else {
-        wctx->fat_table_pos = wctx->timeline_start_pos >> WTV_SECTOR_BITS;
+        fat_table_pos = wctx->timeline_start_pos >> WTV_SECTOR_BITS;
     }
 
     // write root table
-    wctx->sector_pos = avio_tell(pb);
-    root_size = write_root_table(s, timeline_file_size, sector_bits, depth);
+    sector_pos = avio_tell(pb);
+    root_size = write_root_table(s, timeline_file_size, sector_bits, depth, sector_pos, fat_table_pos);
 
     // update root value
     avio_seek(pb, wctx->init_root_pos, SEEK_SET);
     avio_wl32(pb, root_size);
     avio_seek(pb, 4, SEEK_CUR);
-    avio_wl32(pb, wctx->sector_pos >> WTV_SECTOR_BITS);
+    avio_wl32(pb, sector_pos >> WTV_SECTOR_BITS);
 
     avio_flush(pb);
     return 0;
