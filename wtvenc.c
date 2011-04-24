@@ -64,7 +64,6 @@ typedef struct WtvContext {
     int64_t sector_pos;
     int64_t fat_table_pos;
     int64_t timeline_start_pos;
-    int depth;
 } WtvContext;
 
 static const AVCodecGuid audio_guids[] = {
@@ -116,7 +115,7 @@ static int wtv_write_stream_info(AVFormatContext *s)
             wtv_write_pad(pb, 12);
             put_guid(pb,& format_none);
             avio_wl32(pb, 0);
-            av_set_pts_info(st, 64, 1, st->codec->time_base.den);
+            av_set_pts_info(st, 64, 1, 10000000);
         } else if (st->codec->codec_type == AVMEDIA_TYPE_AUDIO) {
             put_guid(pb, &mediatype_audio);
             // use st->codec->codec_id to determine the GUID. we set a temp value here.
@@ -124,7 +123,7 @@ static int wtv_write_stream_info(AVFormatContext *s)
             wtv_write_pad(pb, 12);
             put_guid(pb,& format_none); // set format_none
             avio_wl32(pb, 0); // since set the format_none, the size should be zero. FIXME
-            av_set_pts_info(st, 64, 1, st->codec->sample_rate);
+            av_set_pts_info(st, 64, 1, 10000000);
         } else {
             av_log(s, AV_LOG_ERROR, "unknown codec_type (0x%x)\n", st->codec->codec_type);
             return -1;
@@ -133,7 +132,7 @@ static int wtv_write_stream_info(AVFormatContext *s)
         pad = WTV_PAD8(chunk_len) - chunk_len;
         wtv_write_pad(pb, pad);
     }
-    
+
     return 0;
 }
 
@@ -182,23 +181,25 @@ static int wtv_write_packet(AVFormatContext *s, AVPacket *pkt)
     return 0;
 }
 
-static int wtv_write_root_table(AVFormatContext *s)
+static int wtv_write_root_table(AVFormatContext *s, uint64_t file_length, int sector_bits, int depth)
 {
     WtvContext *wctx = s->priv_data;
     AVIOContext *pb = s->pb;
     int size, pad;
 
     put_guid(pb, &dir_entry_guid);
-    avio_wl16(pb, 0); // dir_length, update later
+    avio_wl16(pb, 48 + sizeof(timeline_le16)); // dir_length
     wtv_write_pad(pb, 6);
-    avio_wl64(pb, 0); // file length, update later
+    if (sector_bits == WTV_SECTOR_BITS)
+        file_length |= 1ULL<<63;
+    avio_wl64(pb, file_length); // file length
 
     avio_wl32(pb, sizeof(timeline_le16) >> 1); // name size
     wtv_write_pad(pb, 4);
     avio_write(pb, timeline_le16, sizeof(timeline_le16)); // name
 
     avio_wl32(pb, wctx->fat_table_pos >> WTV_SECTOR_BITS); // first sector pointer
-    avio_wl32(pb, wctx->depth); // depth
+    avio_wl32(pb, depth);
 
     size = avio_tell(pb) - wctx->sector_pos;
     pad = WTV_SECTOR_SIZE- size;
@@ -207,38 +208,24 @@ static int wtv_write_root_table(AVFormatContext *s)
     return size;
 }
 
-static int wtv_write_sector(AVFormatContext *s, int nb_sectors, int depth)
+static int wtv_write_sector(AVFormatContext *s, int nb_sectors, int sector_bits, int depth)
 {
     WtvContext *wctx = s->priv_data;
     AVIOContext *pb = s->pb;
-    int pad;
 
-    if(depth == 0) {
-        avio_wl32(pb, wctx->timeline_start_pos >> WTV_SECTOR_BITS);
-    } else if(depth == 1) {
-        int i = 0;
-        int64_t sector_pos = wctx->timeline_start_pos;
-        int sector_pointer = sector_pos >> WTV_SECTOR_BITS;
+    if (depth == 1) {
+        int64_t start_sector = wctx->timeline_start_pos >> WTV_SECTOR_BITS;
+        int shift = sector_bits - WTV_SECTOR_BITS;
+        int i;
 
-        // write sector pointer
-        for(; i < nb_sectors; i++) {
-            avio_wl32(pb, sector_pointer);
-            sector_pos += 1 << WTV_BIGSECTOR_BITS;
-            sector_pointer = sector_pos >> WTV_BIGSECTOR_BITS;
-        }
+        for(i = 0; i < nb_sectors; i++)
+            avio_wl32(pb, start_sector + (i << shift));
 
-        // write left sector pointers
-        wtv_write_pad(pb, (WTV_SECTOR_SIZE >> 2) - nb_sectors);
-    } else if(depth == 2) {
-        // size is nb_sectors1 << WTV_SECTOR_BITS
-        // TODO
-    } else {
-        av_log(s, AV_LOG_ERROR, "unsupported file allocation table depth (0x%x)\n", wctx->depth);
-        return -1;
+        // pad left sector pointers
+        wtv_write_pad(pb, WTV_SECTOR_SIZE - (nb_sectors << 2));
+    } else if (depth == 2) {
+        //TODO
     }
-
-    pad = WTV_SECTOR_SIZE - (avio_tell(pb) % WTV_SECTOR_SIZE);
-    wtv_write_pad(pb, pad);
 
     return 0;
 }
@@ -249,56 +236,64 @@ static int wtv_write_trailer(AVFormatContext *s)
     AVIOContext *pb = s->pb;
     int pad;
     int depth;
+    int sector_bits;
     int root_size;
     uint64_t file_len;
+    int nb_sectors;
 
     int64_t end_pos = avio_tell(pb);
-    int timeline_file_size = (end_pos - wctx->timeline_start_pos);
-    int nb_sectors = timeline_file_size >> WTV_BIGSECTOR_BITS;
-    pad = WTV_BIGSECTOR_SIZE - (timeline_file_size % WTV_BIGSECTOR_SIZE);
-    if (pad)
-        nb_sectors++;
-    wtv_write_pad(pb, pad);
+    int64_t timeline_file_size = (end_pos - wctx->timeline_start_pos);
 
-    // pad to 1<< WTV_SECTOR_BITS
-    pad = WTV_SECTOR_SIZE - avio_tell(pb) % WTV_SECTOR_SIZE;
-    wtv_write_pad(pb, pad);
-
-    // determine the depth of fat table
-    if (nb_sectors == 1) {
+    // determine optimal fat table depth, sector_bits, nb_sectors
+    if (timeline_file_size <= WTV_SECTOR_SIZE) {
         depth = 0;
-    } else if (nb_sectors > (WTV_SECTOR_SIZE >> 2)) {
-        depth = 2;
-    } else if (nb_sectors <= (WTV_SECTOR_SIZE << 2)) {
+        sector_bits = WTV_SECTOR_BITS;
+    } else if (timeline_file_size <= (WTV_SECTOR_SIZE / 4) * WTV_SECTOR_SIZE) {
         depth = 1;
+        sector_bits = WTV_SECTOR_BITS;
+    } else if (timeline_file_size <= (WTV_SECTOR_SIZE / 4) * WTV_BIGSECTOR_SIZE) {
+        depth = 1;
+        sector_bits = WTV_BIGSECTOR_BITS;
+#if 0 /* enable depth 2 when its actually implemented */
+    } else if (timeline_file_size <= (int64_t)(WTV_SECTOR_SIZE / 4) * (WTV_SECTOR_SIZE / 4) * WTV_SECTOR_SIZE) {
+        depth = 2;
+        sector_bits = WTV_SECTOR_BITS;
+    } else if (timeline_file_size <= (int64_t)(WTV_SECTOR_SIZE / 4) * (WTV_SECTOR_SIZE / 4) * WTV_BIGSECTOR_SIZE) {
+        depth = 2;
+        sector_bits = WTV_BIGSECTOR_BITS;
+#endif
     } else {
-        av_log(s, AV_LOG_ERROR, "unsupported file allocation table depth (0x%x)\n", depth);
+        av_log(s, AV_LOG_ERROR, "unsupported file allocation table depth (%"PRIi64" bytes)\n", timeline_file_size);
         return -1;
     }
 
-    wctx->depth = depth;
-    // write fat table for data
-    wctx->fat_table_pos = avio_tell(pb);
-    wtv_write_sector(s, nb_sectors, depth);
+    // determine the nb_sectors
+    nb_sectors = (int)(timeline_file_size >> sector_bits);
+
+    // pad sector of timeline
+    pad = (1 << sector_bits) - (timeline_file_size % (1 << sector_bits));
+    if (pad) {
+        nb_sectors++;
+       wtv_write_pad(pb, pad);
+    }
+
+    //write fat table
+    if (depth > 0) {
+        wctx->fat_table_pos = avio_tell(pb);
+        wtv_write_sector(s, nb_sectors, sector_bits, depth);
+    } else {
+        wctx->fat_table_pos = wctx->timeline_start_pos >> WTV_SECTOR_BITS;
+    }
 
     // write root table
     wctx->sector_pos = avio_tell(pb);
-    root_size = wtv_write_root_table(s);
-
-    // calculate the file length
-    file_len = avio_tell(pb);
+    root_size = wtv_write_root_table(s, timeline_file_size, sector_bits, depth);
 
     // update root value
     avio_seek(pb, wctx->init_root_pos, SEEK_SET);
     avio_wl32(pb, root_size);
     avio_seek(pb, 4, SEEK_CUR);
     avio_wl32(pb, wctx->sector_pos >> WTV_SECTOR_BITS);
-
-    // update sector value
-    avio_seek(pb, wctx->sector_pos + 16, SEEK_SET);
-    avio_wl16(pb, root_size);
-    avio_seek(pb, 6, SEEK_CUR);
-    avio_wl64(pb, file_len);
 
     avio_flush(pb);
     return 0;
