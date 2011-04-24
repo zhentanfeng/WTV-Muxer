@@ -78,7 +78,7 @@ static const AVCodecGuid video_guids[] = {
     {CODEC_ID_NONE}
 };
 
-static int wtv_write_pad(AVIOContext *pb, int size)
+static int write_pad(AVIOContext *pb, int size)
 {
     for(; size > 0; size--)
         avio_w8(pb, 0);
@@ -91,7 +91,7 @@ static void put_guid(AVIOContext *s, const ff_asf_guid *g)
     avio_write(s, *g, sizeof(*g));
 }
 
-static int wtv_write_stream_info(AVFormatContext *s)
+static int write_stream_info(AVFormatContext *s)
 {
     AVIOContext *pb = s->pb;
     int chunk_len = 0;
@@ -106,13 +106,13 @@ static int wtv_write_stream_info(AVFormatContext *s)
         chunk_len = 124;
         avio_wl32(pb, chunk_len);
         avio_wl32(pb, st->index);
-        wtv_write_pad(pb, 8);
-        wtv_write_pad(pb, 28);
+        write_pad(pb, 8);
+        write_pad(pb, 28);
 
         if(st->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
             put_guid(pb, &mediatype_video);
             put_guid(pb, &video_guids[0].guid);
-            wtv_write_pad(pb, 12);
+            write_pad(pb, 12);
             put_guid(pb,& format_none);
             avio_wl32(pb, 0);
             av_set_pts_info(st, 64, 1, 10000000);
@@ -120,7 +120,7 @@ static int wtv_write_stream_info(AVFormatContext *s)
             put_guid(pb, &mediatype_audio);
             // use st->codec->codec_id to determine the GUID. we set a temp value here.
             put_guid(pb, &audio_guids[2].guid); // sub media type, the code ID should match the GUID.
-            wtv_write_pad(pb, 12);
+            write_pad(pb, 12);
             put_guid(pb,& format_none); // set format_none
             avio_wl32(pb, 0); // since set the format_none, the size should be zero. FIXME
             av_set_pts_info(st, 64, 1, 10000000);
@@ -130,37 +130,37 @@ static int wtv_write_stream_info(AVFormatContext *s)
         }
 
         pad = WTV_PAD8(chunk_len) - chunk_len;
-        wtv_write_pad(pb, pad);
+        write_pad(pb, pad);
     }
 
     return 0;
 }
 
-static int wtv_write_header(AVFormatContext *s)
+static int write_header(AVFormatContext *s)
 {
     WtvContext *wctx = s->priv_data;
     AVIOContext *pb = s->pb;
     int pad;
     put_guid(pb, &wtv_guid);
     put_guid(pb, &sub_wtv_guid);
-    wtv_write_pad(pb, 16);
+    write_pad(pb, 16);
 
     //write initial root fields
     wctx->init_root_pos = avio_tell(pb);
     avio_wl32(pb, 0);  // root_size, update later
-    wtv_write_pad(pb, 4);
+    write_pad(pb, 4);
     avio_wl32(pb, 0); // root_sector, update it later.
 
     pad = (1 << WTV_SECTOR_BITS) - avio_tell(pb);
-    wtv_write_pad(pb, pad);
+    write_pad(pb, pad);
     wctx->timeline_start_pos = avio_tell(pb);
 
     // write stream metadata
-    wtv_write_stream_info(s);
+    write_stream_info(s);
     return 0;
 }
 
-static int wtv_write_packet(AVFormatContext *s, AVPacket *pkt)
+static int write_packet(AVFormatContext *s, AVPacket *pkt)
 {
     AVIOContext *pb = s->pb;
     int chunk_len = pkt->size + 32;
@@ -169,19 +169,19 @@ static int wtv_write_packet(AVFormatContext *s, AVPacket *pkt)
     put_guid(pb, &data_guid);
     avio_wl32(pb, chunk_len);
     avio_wl32(pb, pkt->stream_index);
-    wtv_write_pad(pb, 8);
+    write_pad(pb, 8);
 
     // write packet data
     avio_write(pb, pkt->data, pkt->size);
 
     // write padding data
-    wtv_write_pad(pb, WTV_PAD8(chunk_len) - chunk_len);
+    write_pad(pb, WTV_PAD8(chunk_len) - chunk_len);
 
     avio_flush(pb);
     return 0;
 }
 
-static int wtv_write_root_table(AVFormatContext *s, uint64_t file_length, int sector_bits, int depth)
+static int write_root_table(AVFormatContext *s, uint64_t file_length, int sector_bits, int depth)
 {
     WtvContext *wctx = s->priv_data;
     AVIOContext *pb = s->pb;
@@ -189,13 +189,13 @@ static int wtv_write_root_table(AVFormatContext *s, uint64_t file_length, int se
 
     put_guid(pb, &dir_entry_guid);
     avio_wl16(pb, 48 + sizeof(timeline_le16)); // dir_length
-    wtv_write_pad(pb, 6);
+    write_pad(pb, 6);
     if (sector_bits == WTV_SECTOR_BITS)
         file_length |= 1ULL<<63;
     avio_wl64(pb, file_length); // file length
 
     avio_wl32(pb, sizeof(timeline_le16) >> 1); // name size
-    wtv_write_pad(pb, 4);
+    write_pad(pb, 4);
     avio_write(pb, timeline_le16, sizeof(timeline_le16)); // name
 
     avio_wl32(pb, wctx->fat_table_pos >> WTV_SECTOR_BITS); // first sector pointer
@@ -203,12 +203,12 @@ static int wtv_write_root_table(AVFormatContext *s, uint64_t file_length, int se
 
     size = avio_tell(pb) - wctx->sector_pos;
     pad = WTV_SECTOR_SIZE- size;
-    wtv_write_pad(pb, pad);
+    write_pad(pb, pad);
 
     return size;
 }
 
-static int wtv_write_sector(AVFormatContext *s, int nb_sectors, int sector_bits, int depth)
+static int write_sector(AVFormatContext *s, int nb_sectors, int sector_bits, int depth)
 {
     WtvContext *wctx = s->priv_data;
     AVIOContext *pb = s->pb;
@@ -222,7 +222,7 @@ static int wtv_write_sector(AVFormatContext *s, int nb_sectors, int sector_bits,
             avio_wl32(pb, start_sector + (i << shift));
 
         // pad left sector pointers
-        wtv_write_pad(pb, WTV_SECTOR_SIZE - (nb_sectors << 2));
+        write_pad(pb, WTV_SECTOR_SIZE - (nb_sectors << 2));
     } else if (depth == 2) {
         //TODO
     }
@@ -230,7 +230,7 @@ static int wtv_write_sector(AVFormatContext *s, int nb_sectors, int sector_bits,
     return 0;
 }
 
-static int wtv_write_trailer(AVFormatContext *s)
+static int write_trailer(AVFormatContext *s)
 {
     WtvContext *wctx = s->priv_data;
     AVIOContext *pb = s->pb;
@@ -273,20 +273,20 @@ static int wtv_write_trailer(AVFormatContext *s)
     pad = (1 << sector_bits) - (timeline_file_size % (1 << sector_bits));
     if (pad) {
         nb_sectors++;
-       wtv_write_pad(pb, pad);
+        write_pad(pb, pad);
     }
 
     //write fat table
     if (depth > 0) {
         wctx->fat_table_pos = avio_tell(pb);
-        wtv_write_sector(s, nb_sectors, sector_bits, depth);
+        write_sector(s, nb_sectors, sector_bits, depth);
     } else {
         wctx->fat_table_pos = wctx->timeline_start_pos >> WTV_SECTOR_BITS;
     }
 
     // write root table
     wctx->sector_pos = avio_tell(pb);
-    root_size = wtv_write_root_table(s, timeline_file_size, sector_bits, depth);
+    root_size = write_root_table(s, timeline_file_size, sector_bits, depth);
 
     // update root value
     avio_seek(pb, wctx->init_root_pos, SEEK_SET);
@@ -308,7 +308,7 @@ AVOutputFormat ff_wtv_muxer = {
     //CODEC_ID_PCM_S16LE,
     CODEC_ID_MP2,
     CODEC_ID_MPEG2VIDEO,
-    wtv_write_header,
-    wtv_write_packet,
-    wtv_write_trailer,
+    write_header,
+    write_packet,
+    write_trailer,
 };
