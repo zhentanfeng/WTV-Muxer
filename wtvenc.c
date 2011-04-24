@@ -107,7 +107,7 @@ static int write_stream_info(AVFormatContext *s)
         write_pad(pb, 8);
         write_pad(pb, 28);
 
-        if(st->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
+        if (st->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
             put_guid(pb, &mediatype_video);
             put_guid(pb, &video_guids[0].guid);
             write_pad(pb, 12);
