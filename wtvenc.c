@@ -205,7 +205,7 @@ static int write_root_table(AVFormatContext *s, uint64_t file_length, int sector
     return size;
 }
 
-static int write_sector(AVFormatContext *s, int nb_sectors, int sector_bits, int depth)
+static int write_fat_sector(AVFormatContext *s, int nb_sectors, int sector_bits, int depth)
 {
     WtvContext *wctx = s->priv_data;
     AVIOContext *pb = s->pb;
@@ -277,7 +277,7 @@ static int write_trailer(AVFormatContext *s)
     //write fat table
     if (depth > 0) {
         fat_table_pos = avio_tell(pb);
-        write_sector(s, nb_sectors, sector_bits, depth);
+        write_fat_sector(s, nb_sectors, sector_bits, depth);
     } else {
         fat_table_pos = wctx->timeline_start_pos >> WTV_SECTOR_BITS;
     }
