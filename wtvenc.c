@@ -91,6 +91,16 @@ static void put_guid(AVIOContext *s, const ff_asf_guid *g)
     avio_write(s, *g, sizeof(*g));
 }
 
+static const ff_asf_guid *get_codec_guid(enum CodecID id, const AVCodecGuid *av_guid)
+{
+    int i;
+    for (i = 0; av_guid[i].id != CODEC_ID_NONE; i++) {
+        if (id == av_guid[i].id)
+            return &(av_guid[i].guid);
+    }
+    return NULL;
+}
+
 static int write_stream_info(AVFormatContext *s)
 {
     AVIOContext *pb = s->pb;
@@ -110,18 +120,27 @@ static int write_stream_info(AVFormatContext *s)
         write_pad(pb, 28);
 
         if (st->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
+            const ff_asf_guid *g = get_codec_guid(st->codec->codec_id, video_guids);
+            if (g == NULL) {
+                av_log(s, AV_LOG_ERROR, "can't get video codec_id (0x%x) guid.\n", st->codec->codec_id);
+                return -1;
+            }
             put_guid(pb, &mediatype_video);
-            put_guid(pb, &video_guids[0].guid);
+            put_guid(pb, g);
             write_pad(pb, 12);
-            put_guid(pb,& format_none);
+            put_guid(pb,&format_none);
             avio_wl32(pb, 0);
             av_set_pts_info(st, 64, 1, 10000000);
         } else if (st->codec->codec_type == AVMEDIA_TYPE_AUDIO) {
+            const ff_asf_guid *g = get_codec_guid(st->codec->codec_id, audio_guids);
+            if (g == NULL) {
+                av_log(s, AV_LOG_ERROR, "can't get audio codec_id (0x%x) guid.\n", st->codec->codec_id);
+                return -1;
+            }
             put_guid(pb, &mediatype_audio);
-            // use st->codec->codec_id to determine the GUID. we set a temp value here.
-            put_guid(pb, &audio_guids[2].guid); // sub media type, the code ID should match the GUID.
+            put_guid(pb, g); // sub media type, the code ID should match the GUID.
             write_pad(pb, 12);
-            put_guid(pb,& format_none); // set format_none
+            put_guid(pb,&format_none); // set format_none
             avio_wl32(pb, 0); // since set the format_none, the size should be zero. FIXME
             av_set_pts_info(st, 64, 1, 10000000);
         } else {
@@ -236,7 +255,54 @@ static int write_fat_sector(AVFormatContext *s, int nb_sectors, int sector_bits,
         // pad left sector pointers
         write_pad(pb, WTV_SECTOR_SIZE - (nb_sectors << 2));
     } else if (depth == 2) {
-        //TODO
+        int i, j, left_sectors_nb;
+        uint8_t *buf, *pos;
+
+        int64_t start_sector = wctx->timeline_start_pos >> WTV_SECTOR_BITS;
+        int shift = sector_bits - WTV_SECTOR_BITS;
+
+        // caculate the nb_sectors1(depth 2), which indicates the number of fat tables.
+        int nb_sector1 = nb_sectors / (WTV_SECTOR_SIZE << 2);
+        left_sectors_nb = nb_sectors % (WTV_SECTOR_SIZE << 2);
+        if (left_sectors_nb)
+            nb_sector1++;
+
+        // allocate buffer for fat tables (depth 2)
+        buf = av_mallocz(nb_sector1*WTV_SECTOR_SIZE);
+        if (!buf) {
+            av_free(buf);
+            return AVERROR(ENOMEM);
+        }
+        pos = buf;
+
+        //write the fat table
+        for (i = 0; i < nb_sector1; i++) {
+            for (j = 0; j < WTV_SECTOR_SIZE << 2; j++) {
+                AV_WL32(pos, start_sector + (j << shift));
+                pos += 4;
+            }
+        }
+
+        // write the last fat table
+        for (j = 0; j < left_sectors_nb; j++) {
+            AV_WL32(pos, start_sector + (j << shift));
+            pos += 4;
+        }
+
+        // get the start_sector of the fat tables, and seek back ready to write the fat table (depth 1).
+        avio_seek(pb, WTV_SECTOR_SIZE, SEEK_CUR);
+        start_sector = avio_tell(pb) >> WTV_SECTOR_BITS;
+        avio_seek(pb, -WTV_SECTOR_SIZE, SEEK_CUR);
+        for (j =0; j < nb_sector1; j++) {
+            avio_wl32(pb, start_sector + j);
+        }
+
+        // pad fat table (depth 1)
+        write_pad(pb, WTV_SECTOR_SIZE - (nb_sector1 << 2));
+
+        // write buffer to file
+        avio_write(pb, buf, nb_sector1*WTV_SECTOR_SIZE);
+        av_free(buf);
     }
 
     return 0;
