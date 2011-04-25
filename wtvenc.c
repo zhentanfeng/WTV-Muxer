@@ -1,5 +1,5 @@
 /*
- * WTV muxer
+ * Windows Television (WTV) muxer
  * Copyright (c) 2011 Zhentan Feng <spyfeng at gmail dot com>
  *
  * This file is part of FFmpeg.
@@ -380,7 +380,7 @@ static int write_trailer(AVFormatContext *s)
 
 AVOutputFormat ff_wtv_muxer = {
     "wtv",
-    NULL_IF_CONFIG_SMALL("Window TeleVision format"),
+    NULL_IF_CONFIG_SMALL("Windows Television (WTV)"),
     NULL,
     "wtv",
     sizeof(WtvContext),
