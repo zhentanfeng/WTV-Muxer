@@ -24,8 +24,6 @@
 #include "internal.h"
 #include "riff.h"
 #include "asf.h"
-//#include "mpegts.h"
-//#include <strings.h>
 
 #define WTV_SECTOR_BITS    12
 #define WTV_BIGSECTOR_BITS 18
@@ -384,7 +382,6 @@ AVOutputFormat ff_wtv_muxer = {
     NULL,
     "wtv",
     sizeof(WtvContext),
-    //CODEC_ID_PCM_S16LE,
     CODEC_ID_MP2,
     CODEC_ID_MPEG2VIDEO,
     write_header,
