@@ -59,7 +59,7 @@ static const ff_asf_guid mediatype_audio =
 static const ff_asf_guid mediatype_video =
     {'v','i','d','s',MEDIASUBTYPE_BASE_GUID};
 
-typedef struct WtvContext {
+typedef struct {
     int64_t init_root_pos;
     int64_t timeline_start_pos;
 } WtvContext;
