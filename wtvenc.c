@@ -330,14 +330,12 @@ static int write_trailer(AVFormatContext *s)
     } else if (timeline_file_size <= (WTV_SECTOR_SIZE / 4) * WTV_BIGSECTOR_SIZE) {
         depth = 1;
         sector_bits = WTV_BIGSECTOR_BITS;
-#if 0 /* enable depth 2 when its actually implemented */
     } else if (timeline_file_size <= (int64_t)(WTV_SECTOR_SIZE / 4) * (WTV_SECTOR_SIZE / 4) * WTV_SECTOR_SIZE) {
         depth = 2;
         sector_bits = WTV_SECTOR_BITS;
     } else if (timeline_file_size <= (int64_t)(WTV_SECTOR_SIZE / 4) * (WTV_SECTOR_SIZE / 4) * WTV_BIGSECTOR_SIZE) {
         depth = 2;
         sector_bits = WTV_BIGSECTOR_BITS;
-#endif
     } else {
         av_log(s, AV_LOG_ERROR, "unsupported file allocation table depth (%"PRIi64" bytes)\n", timeline_file_size);
         return -1;
