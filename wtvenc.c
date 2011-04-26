@@ -376,4 +376,5 @@ AVOutputFormat ff_wtv_muxer = {
     write_header,
     write_packet,
     write_trailer,
+    .codec_tag= (const AVCodecTag* const []){ff_codec_bmp_tags, ff_codec_wav_tags, 0},
 };
