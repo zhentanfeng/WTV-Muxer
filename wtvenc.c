@@ -100,7 +100,6 @@ static int write_stream_info(AVFormatContext *s)
 
     for (; i < s->nb_streams; i++) {
         AVStream *st = s->streams[i];
-        int pad;
 
         put_guid(pb, &stream_guid);
          // FIXME!chun_len should be caculated, for simlify we set some fixed value here.
@@ -139,8 +138,7 @@ static int write_stream_info(AVFormatContext *s)
             return -1;
         }
 
-        pad = WTV_PAD8(chunk_len) - chunk_len;
-        write_pad(pb, pad);
+        write_pad(pb, WTV_PAD8(chunk_len) - chunk_len);
     }
 
     return 0;
