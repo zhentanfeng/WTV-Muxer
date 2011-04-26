@@ -71,7 +71,7 @@ static const AVCodecGuid video_guids[] = {
 
 static int write_pad(AVIOContext *pb, int size)
 {
-    for(; size > 0; size--)
+    for (; size > 0; size--)
         avio_w8(pb, 0);
     return 0;
 }
@@ -240,7 +240,7 @@ static int write_fat_sector(AVFormatContext *s, int nb_sectors, int sector_bits,
         int shift = sector_bits - WTV_SECTOR_BITS;
         int i;
 
-        for(i = 0; i < nb_sectors; i++)
+        for (i = 0; i < nb_sectors; i++)
             avio_wl32(pb, start_sector + (i << shift));
 
         // pad left sector pointers
