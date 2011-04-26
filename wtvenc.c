@@ -163,7 +163,7 @@ static int write_header(AVFormatContext *s)
     write_pad(pb, pad);
     wctx->timeline_start_pos = avio_tell(pb);
 
-    // write stream metadata
+    // write stream info 
     write_stream_info(s);
     return 0;
 }
