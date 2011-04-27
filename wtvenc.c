@@ -265,7 +265,7 @@ static int write_fat_sector(AVFormatContext *s, int nb_sectors, int sector_bits,
         pos = buf;
 
         //write the fat table
-        for (i = 0; i < nb_sector1; i++) {
+        for (i = 0; i < nb_sector1 - 1; i++) {
             for (j = 0; j < WTV_SECTOR_SIZE << 2; j++) {
                 AV_WL32(pos, start_sector + (j << shift));
                 pos += 4;
