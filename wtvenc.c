@@ -37,9 +37,6 @@ static const uint8_t timeline_le16[] =
     {'t'_'i'_'m'_'e'_'l'_'i'_'n'_'e', 0};
 #undef _
 
-#define MEDIASUBTYPE_BASE_GUID \
-    0x00,0x00,0x10,0x00,0x80,0x00,0x00,0xAA,0x00,0x38,0x9B,0x71
-
 static const ff_asf_guid wtv_guid =
     {0xB7,0xD8,0x00,0x20,0x37,0x49,0xDA,0x11,0xA6,0x4E,0x00,0x07,0xE9,0x5E,0xAD,0x8D};
 static const ff_asf_guid sub_wtv_guid =
@@ -55,9 +52,9 @@ static const ff_asf_guid stream_guid =
 static const ff_asf_guid format_none =
     {0xD6,0x17,0x64,0x0F,0x18,0xC3,0xD0,0x11,0xA4,0x3F,0x00,0xA0,0xC9,0x22,0x31,0x96};
 static const ff_asf_guid mediatype_audio =
-    {'a','u','d','s',MEDIASUBTYPE_BASE_GUID};
+    {'a','u','d','s',FF_MEDIASUBTYPE_BASE_GUID};
 static const ff_asf_guid mediatype_video =
-    {'v','i','d','s',MEDIASUBTYPE_BASE_GUID};
+    {'v','i','d','s',FF_MEDIASUBTYPE_BASE_GUID};
 
 typedef struct {
     int64_t init_root_pos;
