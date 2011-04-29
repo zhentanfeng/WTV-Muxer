@@ -228,73 +228,36 @@ static int write_root_table(AVFormatContext *s, uint64_t file_length, int sector
     return size;
 }
 
+static void write_fat(AVIOContext *pb, int start_sector, int nb_sectors, int shift)
+{
+    int i;
+    for (i = 0; i < nb_sectors; i++) {
+        avio_wl32(pb, start_sector + (i << shift));
+    }
+    // pad left sector pointer size
+    write_pad(pb, WTV_SECTOR_SIZE - (nb_sectors << 2));
+}
+
 static int write_fat_sector(AVFormatContext *s, int nb_sectors, int sector_bits, int depth)
 {
     WtvContext *wctx = s->priv_data;
-    AVIOContext *pb = s->pb;
 
-    if (depth == 1) {
-        int64_t start_sector = wctx->timeline_start_pos >> WTV_SECTOR_BITS;
-        int shift = sector_bits - WTV_SECTOR_BITS;
-        int i;
+    int64_t start_sector = wctx->timeline_start_pos >> WTV_SECTOR_BITS;
+    int shift = sector_bits - WTV_SECTOR_BITS;
 
-        for (i = 0; i < nb_sectors; i++)
-            avio_wl32(pb, start_sector + (i << shift));
+    int64_t fat = avio_tell(s->pb);
+    write_fat(s->pb, start_sector, nb_sectors, shift);
 
-        // pad left sector pointers
-        write_pad(pb, WTV_SECTOR_SIZE - (nb_sectors << 2));
-    } else if (depth == 2) {
-        int i, j, left_sectors_nb;
-        uint8_t *buf, *pos;
+    if (depth == 2) {
+        int64_t start_sector1 = fat >> WTV_SECTOR_BITS;
+        int nb_sectors1 = ((nb_sectors << 2) + WTV_SECTOR_SIZE - 1) / WTV_SECTOR_SIZE;
+        int64_t fat1 = avio_tell(s->pb);
 
-        int64_t start_sector = wctx->timeline_start_pos >> WTV_SECTOR_BITS;
-        int shift = sector_bits - WTV_SECTOR_BITS;
-
-        // caculate the nb_sectors1(depth 2), which indicates the number of fat tables.
-        int nb_sector1 = nb_sectors / (WTV_SECTOR_SIZE << 2);
-        left_sectors_nb = nb_sectors % (WTV_SECTOR_SIZE << 2);
-        if (left_sectors_nb)
-            nb_sector1++;
-
-        // allocate buffer for fat tables (depth 2)
-        buf = av_mallocz(nb_sector1*WTV_SECTOR_SIZE);
-        if (!buf) {
-            av_free(buf);
-            return AVERROR(ENOMEM);
-        }
-        pos = buf;
-
-        //write the fat table
-        for (i = 0; i < nb_sector1 - 1; i++) {
-            for (j = 0; j < WTV_SECTOR_SIZE << 2; j++) {
-                AV_WL32(pos, start_sector + (j << shift));
-                pos += 4;
-            }
-        }
-
-        // write the last fat table
-        for (j = 0; j < left_sectors_nb; j++) {
-            AV_WL32(pos, start_sector + (j << shift));
-            pos += 4;
-        }
-
-        // get the start_sector of the fat tables, and seek back ready to write the fat table (depth 1).
-        avio_seek(pb, WTV_SECTOR_SIZE, SEEK_CUR);
-        start_sector = avio_tell(pb) >> WTV_SECTOR_BITS;
-        avio_seek(pb, -WTV_SECTOR_SIZE, SEEK_CUR);
-        for (j =0; j < nb_sector1; j++) {
-            avio_wl32(pb, start_sector + j);
-        }
-
-        // pad fat table (depth 1)
-        write_pad(pb, WTV_SECTOR_SIZE - (nb_sector1 << 2));
-
-        // write buffer to file
-        avio_write(pb, buf, nb_sector1*WTV_SECTOR_SIZE);
-        av_free(buf);
+       write_fat(s->pb, start_sector1, nb_sectors1, 0);
+       return fat1;
     }
 
-    return 0;
+    return fat;
 }
 
 static int write_trailer(AVFormatContext *s)
@@ -344,8 +307,7 @@ static int write_trailer(AVFormatContext *s)
 
     //write fat table
     if (depth > 0) {
-        fat_table_pos = avio_tell(pb);
-        write_fat_sector(s, nb_sectors, sector_bits, depth);
+        fat_table_pos = write_fat_sector(s, nb_sectors, sector_bits, depth);
     } else {
         fat_table_pos = wctx->timeline_start_pos >> WTV_SECTOR_BITS;
     }
