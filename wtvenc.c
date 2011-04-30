@@ -77,7 +77,7 @@ static void put_guid(AVIOContext *s, const ff_asf_guid *g)
 {
     assert(sizeof(*g) == 16);
     avio_write(s, *g, sizeof(*g));
-}
+ }
 
 static const ff_asf_guid *get_codec_guid(enum CodecID id, const AVCodecGuid *av_guid)
 {
@@ -92,19 +92,18 @@ static const ff_asf_guid *get_codec_guid(enum CodecID id, const AVCodecGuid *av_
 static int write_stream_info(AVFormatContext *s)
 {
     AVIOContext *pb = s->pb;
-    int chunk_len = 0;
     int i = 0;
 
     for (; i < s->nb_streams; i++) {
+        int chunk_len = 0;
         AVStream *st = s->streams[i];
 
         put_guid(pb, &stream_guid);
-         // FIXME!chun_len should be caculated, for simlify we set some fixed value here.
-        chunk_len = 124;
-        avio_wl32(pb, chunk_len);
+        avio_wl32(pb, 0);
         avio_wl32(pb, st->index);
         write_pad(pb, 8);
         write_pad(pb, 28);
+        chunk_len = 32;
 
         if (st->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
             const ff_asf_guid *g = get_codec_guid(st->codec->codec_id, video_guids);
@@ -117,6 +116,7 @@ static int write_stream_info(AVFormatContext *s)
             write_pad(pb, 12);
             put_guid(pb,&format_none);
             avio_wl32(pb, 0);
+            chunk_len += 92;
             av_set_pts_info(st, 64, 1, 10000000);
         } else if (st->codec->codec_type == AVMEDIA_TYPE_AUDIO) {
             const ff_asf_guid *g = get_codec_guid(st->codec->codec_id, ff_codec_wav_guids);
@@ -129,12 +129,17 @@ static int write_stream_info(AVFormatContext *s)
             write_pad(pb, 12);
             put_guid(pb,&format_none); // set format_none
             avio_wl32(pb, 0); // since set the format_none, the size should be zero. FIXME
+            chunk_len += 92;
             av_set_pts_info(st, 64, 1, 10000000);
         } else {
             av_log(s, AV_LOG_ERROR, "unknown codec_type (0x%x)\n", st->codec->codec_type);
             return -1;
         }
 
+        // update the chunk_len field and pad.
+        avio_seek(pb, -(chunk_len - 16), SEEK_CUR);
+        avio_wl32(pb, chunk_len);
+        avio_seek(pb, chunk_len - (16 + 4), SEEK_CUR);
         write_pad(pb, WTV_PAD8(chunk_len) - chunk_len);
     }
 
@@ -160,7 +165,7 @@ static int write_header(AVFormatContext *s)
     write_pad(pb, pad);
     wctx->timeline_start_pos = avio_tell(pb);
 
-    // write stream info 
+    // write stream info
     write_stream_info(s);
     return 0;
 }
