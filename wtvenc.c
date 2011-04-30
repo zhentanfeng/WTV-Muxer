@@ -22,12 +22,8 @@
 #include "libavutil/intreadwrite.h"
 #include "avformat.h"
 #include "internal.h"
-#include "riff.h"
-#include "asf.h"
+#include "wtv.h"
 
-#define WTV_SECTOR_BITS    12
-#define WTV_BIGSECTOR_BITS 18
-#define WTV_SECTOR_SIZE    (1 << WTV_SECTOR_BITS)
 #define WTV_BIGSECTOR_SIZE (1 << WTV_BIGSECTOR_BITS)
 #define WTV_PAD8(x) (((x) + 7) & ~7)
 
@@ -37,34 +33,13 @@ static const uint8_t timeline_le16[] =
     {'t'_'i'_'m'_'e'_'l'_'i'_'n'_'e', 0};
 #undef _
 
-static const ff_asf_guid wtv_guid =
-    {0xB7,0xD8,0x00,0x20,0x37,0x49,0xDA,0x11,0xA6,0x4E,0x00,0x07,0xE9,0x5E,0xAD,0x8D};
 static const ff_asf_guid sub_wtv_guid =
     {0x8C,0xC3,0xD2,0xC2,0x7E,0x9A,0xDA,0x11,0x8B,0xF7,0x00,0x07,0xE9,0x5E,0xAD,0x8D};
-static const ff_asf_guid timestamp_guid =
-    {0x5B,0x05,0xE6,0x1B,0x97,0xA9,0x49,0x43,0x88,0x17,0x1A,0x65,0x5A,0x29,0x8A,0x97};
-static const ff_asf_guid data_guid =
-    {0x95,0xC3,0xD2,0xC2,0x7E,0x9A,0xDA,0x11,0x8B,0xF7,0x00,0x07,0xE9,0x5E,0xAD,0x8D};
-static const ff_asf_guid dir_entry_guid =
-    {0x92,0xB7,0x74,0x91,0x59,0x70,0x70,0x44,0x88,0xDF,0x06,0x3B,0x82,0xCC,0x21,0x3D};
-static const ff_asf_guid stream_guid =
-    {0xED,0xA4,0x13,0x23,0x2D,0xBF,0x4F,0x45,0xAD,0x8A,0xD9,0x5B,0xA7,0xF9,0x1F,0xEE};
-static const ff_asf_guid format_none =
-    {0xD6,0x17,0x64,0x0F,0x18,0xC3,0xD0,0x11,0xA4,0x3F,0x00,0xA0,0xC9,0x22,0x31,0x96};
-static const ff_asf_guid mediatype_audio =
-    {'a','u','d','s',FF_MEDIASUBTYPE_BASE_GUID};
-static const ff_asf_guid mediatype_video =
-    {'v','i','d','s',FF_MEDIASUBTYPE_BASE_GUID};
 
 typedef struct {
     int64_t init_root_pos;
     int64_t timeline_start_pos;
 } WtvContext;
-
-static const AVCodecGuid video_guids[] = {
-    {CODEC_ID_MPEG2VIDEO, {0x26,0x80,0x6D,0xE0,0x46,0xDB,0xCF,0x11,0xB4,0xD1,0x00,0x80,0x5F,0x6C,0xBB,0xEA}},
-    {CODEC_ID_NONE}
-};
 
 static int write_pad(AVIOContext *pb, int size)
 {
@@ -98,7 +73,7 @@ static int write_stream_info(AVFormatContext *s)
         int chunk_len = 0;
         AVStream *st = s->streams[i];
 
-        put_guid(pb, &stream_guid);
+        put_guid(pb, &ff_stream_guid);
         avio_wl32(pb, 0);
         avio_wl32(pb, st->index);
         write_pad(pb, 8);
@@ -106,15 +81,15 @@ static int write_stream_info(AVFormatContext *s)
         chunk_len = 32;
 
         if (st->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
-            const ff_asf_guid *g = get_codec_guid(st->codec->codec_id, video_guids);
+            const ff_asf_guid *g = get_codec_guid(st->codec->codec_id, ff_video_guids);
             if (g == NULL) {
                 av_log(s, AV_LOG_ERROR, "can't get video codec_id (0x%x) guid.\n", st->codec->codec_id);
                 return -1;
             }
-            put_guid(pb, &mediatype_video);
+            put_guid(pb, &ff_mediatype_video);
             put_guid(pb, g);
             write_pad(pb, 12);
-            put_guid(pb,&format_none);
+            put_guid(pb,&ff_format_none);
             avio_wl32(pb, 0);
             chunk_len += 92;
             av_set_pts_info(st, 64, 1, 10000000);
@@ -124,10 +99,10 @@ static int write_stream_info(AVFormatContext *s)
                 av_log(s, AV_LOG_ERROR, "can't get audio codec_id (0x%x) guid.\n", st->codec->codec_id);
                 return -1;
             }
-            put_guid(pb, &mediatype_audio);
+            put_guid(pb, &ff_mediatype_audio);
             put_guid(pb, g); // sub media type, the code ID should match the GUID.
             write_pad(pb, 12);
-            put_guid(pb,&format_none); // set format_none
+            put_guid(pb,&ff_format_none); // set format_none
             avio_wl32(pb, 0); // since set the format_none, the size should be zero. FIXME
             chunk_len += 92;
             av_set_pts_info(st, 64, 1, 10000000);
@@ -151,7 +126,7 @@ static int write_header(AVFormatContext *s)
     WtvContext *wctx = s->priv_data;
     AVIOContext *pb = s->pb;
     int pad;
-    put_guid(pb, &wtv_guid);
+    put_guid(pb, &ff_wtv_guid);
     put_guid(pb, &sub_wtv_guid);
     write_pad(pb, 16);
 
@@ -172,7 +147,7 @@ static int write_header(AVFormatContext *s)
 
 static void write_timestamp(AVIOContext *pb, AVPacket *pkt)
 {
-    put_guid(pb, &timestamp_guid);
+    put_guid(pb, &ff_timestamp_guid);
     avio_wl32(pb, 32 + 16);
     avio_wl32(pb, pkt->stream_index);
     write_pad(pb, 8);
@@ -189,7 +164,7 @@ static int write_packet(AVFormatContext *s, AVPacket *pkt)
     write_timestamp(pb, pkt);
 
      // write chunk header
-    put_guid(pb, &data_guid);
+    put_guid(pb, &ff_data_guid);
     avio_wl32(pb, chunk_len);
     avio_wl32(pb, pkt->stream_index);
     write_pad(pb, 8);
@@ -209,7 +184,7 @@ static int write_root_table(AVFormatContext *s, uint64_t file_length, int sector
     AVIOContext *pb = s->pb;
     int size, pad;
 
-    put_guid(pb, &dir_entry_guid);
+    put_guid(pb, &ff_dir_entry_guid);
     avio_wl16(pb, 48 + sizeof(timeline_le16)); // dir_length
     write_pad(pb, 6);
     if (sector_bits == WTV_SECTOR_BITS)
