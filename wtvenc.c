@@ -128,13 +128,21 @@ static int write_header(AVFormatContext *s)
     int pad;
     put_guid(pb, &ff_wtv_guid);
     put_guid(pb, &sub_wtv_guid);
-    write_pad(pb, 16);
+
+    // It seems fixed value. unknown meanings.
+    avio_wl32(pb, 0x01);
+    avio_wl32(pb, 0x02);
+    avio_wl32(pb, 0x1000);
+    avio_wl32(pb, 0x400000);
 
     //write initial root fields
     wctx->init_root_pos = avio_tell(pb);
     avio_wl32(pb, 0);  // root_size, update later
     write_pad(pb, 4);
     avio_wl32(pb, 0); // root_sector, update it later.
+
+    write_pad(pb, 32);
+    avio_wl32(pb, 0x0600); // unknown field. should not be 0x0000, 0x0*00 seems ok
 
     pad = (1 << WTV_SECTOR_BITS) - avio_tell(pb);
     write_pad(pb, pad);
