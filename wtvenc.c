@@ -31,6 +31,10 @@
 #define _ , 0,
 static const uint8_t timeline_le16[] =
     {'t'_'i'_'m'_'e'_'l'_'i'_'n'_'e', 0};
+static const uint8_t timeline_table_0_header_events[] =
+    {'t'_'i'_'m'_'e'_'l'_'i'_'n'_'e'_'.'_'t'_'a'_'b'_'l'_'e'_'.'_'0'_'.'_'h'_'e'_'a'_'d'_'e'_'r'_'.'_'E'_'v'_'e'_'n'_'t'_'s', 0};
+static const uint8_t timeline_table_0_entries_Events_le16[] =
+    {'t'_'i'_'m'_'e'_'l'_'i'_'n'_'e'_'.'_'t'_'a'_'b'_'l'_'e'_'.'_'0'_'.'_'e'_'n'_'t'_'r'_'i'_'e'_'s'_'.'_'E'_'v'_'e'_'n'_'t'_'s', 0};
 #undef _
 
 static const ff_asf_guid sub_wtv_guid =
@@ -133,7 +137,7 @@ static int write_header(AVFormatContext *s)
     avio_wl32(pb, 0x01);
     avio_wl32(pb, 0x02);
     avio_wl32(pb, 0x1000);
-    avio_wl32(pb, 0x400000);
+    avio_wl32(pb, 0x040000);
 
     //write initial root fields
     wctx->init_root_pos = avio_tell(pb);
@@ -192,6 +196,33 @@ static int write_root_table(AVFormatContext *s, uint64_t file_length, int sector
     AVIOContext *pb = s->pb;
     int size, pad;
 
+    /***** add timeline_table_0_header_events *****/
+    put_guid(pb, &ff_dir_entry_guid);
+    avio_wl16(pb, 200); // dir_length
+    write_pad(pb, 6);
+    avio_wl64(pb, 0x5000000000000060);
+    avio_wl32(pb, (sizeof(timeline_table_0_header_events) >> 1) + 2);// name size
+    write_pad(pb, 4);
+    avio_write(pb, timeline_table_0_header_events, sizeof(timeline_table_0_header_events));
+    write_pad(pb, 4); // last 4 bytes are 0
+    avio_wl32(pb, 0x00000010); // not meaning the sector pointer
+    write_pad(pb, 5*16 + 4);
+    avio_wl32(pb, 0x00000010); // Unknow, but should not be zero
+    write_pad(pb, 4);
+
+    /***** add timeline_table_0_entries_Events_le16 *****/
+    put_guid(pb, &ff_dir_entry_guid);
+    avio_wl16(pb, 112); // dir_length
+    write_pad(pb, 6);
+    avio_wl64(pb, 0x9000000000000360);
+    avio_wl32(pb, (sizeof(timeline_table_0_entries_Events_le16) >> 1) + 1); // name size
+    write_pad(pb, 4);
+    avio_write(pb, timeline_table_0_entries_Events_le16, sizeof(timeline_table_0_entries_Events_le16));
+    write_pad(pb, 2);
+    avio_wl32(pb, 0x00000016);
+    write_pad(pb, 4);
+
+    /***** add timeline *****/
     put_guid(pb, &ff_dir_entry_guid);
     avio_wl16(pb, 48 + sizeof(timeline_le16)); // dir_length
     write_pad(pb, 6);
