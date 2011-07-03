@@ -43,6 +43,8 @@ static const ff_asf_guid sub_wtv_guid =
 typedef struct {
     int64_t init_root_pos;
     int64_t timeline_start_pos;
+    int64_t table_header_events_pos;
+    int64_t table_entries_events_pos;
 } WtvContext;
 
 static int write_pad(AVIOContext *pb, int size)
@@ -194,6 +196,7 @@ static int write_packet(AVFormatContext *s, AVPacket *pkt)
 static int write_root_table(AVFormatContext *s, uint64_t file_length, int sector_bits, int depth, int64_t sector_pos, int64_t fat_table_pos)
 {
     AVIOContext *pb = s->pb;
+    WtvContext *wctx = s->priv_data;
     int size, pad;
 
     /***** add timeline_table_0_header_events *****/
@@ -205,7 +208,7 @@ static int write_root_table(AVFormatContext *s, uint64_t file_length, int sector
     write_pad(pb, 4);
     avio_write(pb, timeline_table_0_header_events, sizeof(timeline_table_0_header_events));
     write_pad(pb, 4); // last 4 bytes are 0
-    avio_wl32(pb, 0x00000010); // not meaning the sector pointer
+    avio_wl32(pb, wctx->table_header_events_pos >> WTV_SECTOR_BITS);
     write_pad(pb, 5*16 + 4);
     avio_wl32(pb, 0x00000010); // Unknow, but should not be zero
     write_pad(pb, 4);
@@ -219,7 +222,7 @@ static int write_root_table(AVFormatContext *s, uint64_t file_length, int sector
     write_pad(pb, 4);
     avio_write(pb, timeline_table_0_entries_Events_le16, sizeof(timeline_table_0_entries_Events_le16));
     write_pad(pb, 2);
-    avio_wl32(pb, 0x00000016);
+    avio_wl32(pb, wctx->table_entries_events_pos >> WTV_SECTOR_BITS);
     write_pad(pb, 4);
 
     /***** add timeline *****/
@@ -276,6 +279,22 @@ static int write_fat_sector(AVFormatContext *s, int nb_sectors, int sector_bits,
     return fat;
 }
 
+static void write_table_header_events(AVFormatContext *s)
+{
+    AVIOContext *pb = s->pb;
+    WtvContext *wctx = s->priv_data;
+    wctx->table_header_events_pos = avio_tell(pb);
+    write_pad(pb, WTV_SECTOR_SIZE);
+}
+
+static void write_table_entries_events(AVFormatContext *s)
+{
+    AVIOContext *pb = s->pb;
+    WtvContext *wctx = s->priv_data;
+    wctx->table_entries_events_pos = avio_tell(pb);
+    write_pad(pb, WTV_SECTOR_SIZE);
+}
+
 static int write_trailer(AVFormatContext *s)
 {
     WtvContext *wctx = s->priv_data;
@@ -320,6 +339,12 @@ static int write_trailer(AVFormatContext *s)
         nb_sectors++;
         write_pad(pb, pad);
     }
+
+    // write table header events content
+    write_table_header_events(s);
+
+    // write table entries events content
+    write_table_entries_events(s);
 
     //write fat table
     if (depth > 0) {
