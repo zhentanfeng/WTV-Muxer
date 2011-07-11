@@ -36,15 +36,17 @@ static const uint8_t timeline_table_0_header_events[] =
 static const uint8_t timeline_table_0_entries_Events_le16[] =
     {'t'_'i'_'m'_'e'_'l'_'i'_'n'_'e'_'.'_'t'_'a'_'b'_'l'_'e'_'.'_'0'_'.'_'e'_'n'_'t'_'r'_'i'_'e'_'s'_'.'_'E'_'v'_'e'_'n'_'t'_'s', 0};
 static const uint8_t table_0_header_legacy_attrib[] =
-    {'t'_'a'_'b'_'l'_'e'_'.'_'0'_'.'_'h'_'e'_'a'_'d'_'e'_'r'_'.'_'l'_'e'_'g'_'a'_'c'_'y'_'.'_'a'_'t'_'t'_'r'_'i'_'b', 0};
+    {'t'_'a'_'b'_'l'_'e'_'.'_'0'_'.'_'h'_'e'_'a'_'d'_'e'_'r'_'.'_'l'_'e'_'g'_'a'_'c'_'y'_'_'_'a'_'t'_'t'_'r'_'i'_'b', 0};
 static const uint8_t table_0_entries_legacy_attrib[] =
-    {'t'_'a'_'b'_'l'_'e'_'.'_'0'_'.'_'e'_'n'_'t'_'r'_'i'_'e'_'s'_'.'_'a'_'t'_'t'_'r'_'i'_'b', 0};
+    {'t'_'a'_'b'_'l'_'e'_'.'_'0'_'.'_'e'_'n'_'t'_'r'_'i'_'e'_'s'_'.'_'l'_'e'_'g'_'a'_'c'_'y'_'_'_'a'_'t'_'t'_'r'_'i'_'b', 0};
 static const uint8_t table_0_redirector_legacy_attrib[] =
-    {'t'_'a'_'b'_'l'_'e'_'.'_'0'_'.'_'r'_'e'_'d'_'i'_'r'_'e'_'c'_'t'_'o'_'r'_'.'_'l'_'e'_'g'_'a'_'c'_'y'_'.'_'a'_'t'_'t'_'r'_'i'_'b', 0};
+    {'t'_'a'_'b'_'l'_'e'_'.'_'0'_'.'_'r'_'e'_'d'_'i'_'r'_'e'_'c'_'t'_'o'_'r'_'.'_'l'_'e'_'g'_'a'_'c'_'y'_'_'_'a'_'t'_'t'_'r'_'i'_'b', 0};
 static const uint8_t table_0_header_time[] =
     {'t'_'a'_'b'_'l'_'e'_'.'_'0'_'.'_'h'_'e'_'a'_'d'_'e'_'r'_'.'_'t'_'i'_'m'_'e', 0};
 static const uint8_t table_0_entries_time[] =
     {'t'_'a'_'b'_'l'_'e'_'.'_'0'_'.'_'e'_'n'_'t'_'r'_'i'_'e'_'s'_'.'_'t'_'i'_'m'_'e', 0};
+static const uint8_t legacy_attrib[] =
+    {'l'_'e'_'g'_'a'_'c'_'y'_'_'_'a'_'t'_'t'_'r'_'i'_'b', 0};
 #undef _
 
 static const ff_asf_guid sub_wtv_guid =
@@ -223,7 +225,7 @@ static int write_root_table(AVFormatContext *s, uint64_t file_length, int sector
     write_pad(pb, 4); // last 4 bytes are 0
     avio_wl32(pb, wctx->table_header_events_pos >> WTV_SECTOR_BITS);
     write_pad(pb, 5*16 + 4); // FIXME
-    avio_wl32(pb, 0x00000001); // Unknow, but should not be zero
+    avio_wl32(pb, 0x00000032); // Unknow, but should not be zero
     write_pad(pb, 4);
 
     /***** add timeline_table_0_entries_Events_le16 2*****/
@@ -261,7 +263,10 @@ static int write_root_table(AVFormatContext *s, uint64_t file_length, int sector
     avio_wl32(pb, sizeof(table_0_header_legacy_attrib) >> 1);
     write_pad(pb, 4);
     avio_write(pb, table_0_header_legacy_attrib, sizeof(table_0_header_legacy_attrib));
-    write_pad(pb, 5*16); // FIXME
+    avio_wl32(pb, 0xffffffff);
+    write_pad(pb, 12);
+    avio_write(pb, legacy_attrib, sizeof(legacy_attrib));
+    write_pad(pb, 36);
 
     /***** add table_0_entries_attrib 4*****/
     put_guid(pb, &ff_dir_entry_guid);
@@ -295,7 +300,9 @@ static int write_root_table(AVFormatContext *s, uint64_t file_length, int sector
     avio_write(pb, table_0_header_time, sizeof(table_0_header_time));
     avio_wl32(pb, wctx->table_header_events_pos >> WTV_SECTOR_BITS); // Same with table 1
     avio_wl32(pb, 0);
-    write_pad(pb, 5*16);// FIXME
+    write_pad(pb, 4*16 + 8);
+    avio_wl32(pb, 0x00000040);
+    avio_wl32(pb, 0);
 
     /***** add table_0_entries_time 7*****/
     put_guid(pb, &ff_dir_entry_guid);
