@@ -266,7 +266,7 @@ static int write_root_table(AVFormatContext *s, uint64_t file_length, int sector
     avio_wl32(pb, 0xffffffff);
     write_pad(pb, 12);
     avio_write(pb, legacy_attrib, sizeof(legacy_attrib));
-    write_pad(pb, 36);
+    write_pad(pb, 38);
 
     /***** add table_0_entries_attrib 4*****/
     put_guid(pb, &ff_dir_entry_guid);
@@ -276,6 +276,7 @@ static int write_root_table(AVFormatContext *s, uint64_t file_length, int sector
     avio_wl32(pb, sizeof(table_0_entries_legacy_attrib) >> 1);
     write_pad(pb, 4);
     avio_write(pb, table_0_entries_legacy_attrib, sizeof(table_0_entries_legacy_attrib));
+    write_pad(pb, 6);
     avio_wl32(pb, wctx->table_entries_legacy_attrib_pos >> WTV_SECTOR_BITS); //sector pointer
     avio_wl32(pb, 1); // depth = 1
 
@@ -298,6 +299,7 @@ static int write_root_table(AVFormatContext *s, uint64_t file_length, int sector
     avio_wl32(pb, sizeof(table_0_header_time) >> 1);
     write_pad(pb, 4);
     avio_write(pb, table_0_header_time, sizeof(table_0_header_time));
+    avio_wl16(pb, 0);
     avio_wl32(pb, wctx->table_header_events_pos >> WTV_SECTOR_BITS); // Same with table 1
     avio_wl32(pb, 0);
     write_pad(pb, 4*16 + 8);
