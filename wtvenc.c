@@ -35,6 +35,16 @@ static const uint8_t timeline_table_0_header_events[] =
     {'t'_'i'_'m'_'e'_'l'_'i'_'n'_'e'_'.'_'t'_'a'_'b'_'l'_'e'_'.'_'0'_'.'_'h'_'e'_'a'_'d'_'e'_'r'_'.'_'E'_'v'_'e'_'n'_'t'_'s', 0};
 static const uint8_t timeline_table_0_entries_Events_le16[] =
     {'t'_'i'_'m'_'e'_'l'_'i'_'n'_'e'_'.'_'t'_'a'_'b'_'l'_'e'_'.'_'0'_'.'_'e'_'n'_'t'_'r'_'i'_'e'_'s'_'.'_'E'_'v'_'e'_'n'_'t'_'s', 0};
+static const uint8_t table_0_header_legacy_attrib[] =
+    {'t'_'a'_'b'_'l'_'e'_'.'_'0'_'.'_'h'_'e'_'a'_'d'_'e'_'r'_'.'_'l'_'e'_'g'_'a'_'c'_'y'_'.'_'a'_'t'_'t'_'r'_'i'_'b', 0};
+static const uint8_t table_0_entries_legacy_attrib[] =
+    {'t'_'a'_'b'_'l'_'e'_'.'_'0'_'.'_'e'_'n'_'t'_'r'_'i'_'e'_'s'_'.'_'a'_'t'_'t'_'r'_'i'_'b', 0};
+static const uint8_t table_0_redirector_legacy_attrib[] =
+    {'t'_'a'_'b'_'l'_'e'_'.'_'0'_'.'_'r'_'e'_'d'_'i'_'r'_'e'_'c'_'t'_'o'_'r'_'.'_'l'_'e'_'g'_'a'_'c'_'y'_'.'_'a'_'t'_'t'_'r'_'i'_'b', 0};
+static const uint8_t table_0_header_time[] =
+    {'t'_'a'_'b'_'l'_'e'_'.'_'0'_'.'_'h'_'e'_'a'_'d'_'e'_'r'_'.'_'t'_'i'_'m'_'e', 0};
+static const uint8_t table_0_entries_time[] =
+    {'t'_'a'_'b'_'l'_'e'_'.'_'0'_'.'_'e'_'n'_'t'_'r'_'i'_'e'_'s'_'.'_'t'_'i'_'m'_'e', 0};
 #undef _
 
 static const ff_asf_guid sub_wtv_guid =
@@ -45,6 +55,9 @@ typedef struct {
     int64_t timeline_start_pos;
     int64_t table_header_events_pos;
     int64_t table_entries_events_pos;
+    int64_t table_entries_legacy_attrib_pos;
+    int64_t table_redirector_legacy_attrib_pos;
+    int64_t table_entries_time_pos;
 } WtvContext;
 
 static int write_pad(AVIOContext *pb, int size)
@@ -199,7 +212,7 @@ static int write_root_table(AVFormatContext *s, uint64_t file_length, int sector
     WtvContext *wctx = s->priv_data;
     int size, pad;
 
-    /***** add timeline_table_0_header_events *****/
+    /***** add timeline_table_0_header_events 1*****/
     put_guid(pb, &ff_dir_entry_guid);
     avio_wl16(pb, 200); // dir_length
     write_pad(pb, 6);
@@ -209,15 +222,15 @@ static int write_root_table(AVFormatContext *s, uint64_t file_length, int sector
     avio_write(pb, timeline_table_0_header_events, sizeof(timeline_table_0_header_events));
     write_pad(pb, 4); // last 4 bytes are 0
     avio_wl32(pb, wctx->table_header_events_pos >> WTV_SECTOR_BITS);
-    write_pad(pb, 5*16 + 4);
-    avio_wl32(pb, 0x00000010); // Unknow, but should not be zero
+    write_pad(pb, 5*16 + 4); // FIXME
+    avio_wl32(pb, 0x00000001); // Unknow, but should not be zero
     write_pad(pb, 4);
 
-    /***** add timeline_table_0_entries_Events_le16 *****/
+    /***** add timeline_table_0_entries_Events_le16 2*****/
     put_guid(pb, &ff_dir_entry_guid);
     avio_wl16(pb, 112); // dir_length
     write_pad(pb, 6);
-    avio_wl64(pb, 0x9000000000000360);
+    avio_wl64(pb, 0x9000000000000360); // FIXME
     avio_wl32(pb, (sizeof(timeline_table_0_entries_Events_le16) >> 1) + 1); // name size
     write_pad(pb, 4);
     avio_write(pb, timeline_table_0_entries_Events_le16, sizeof(timeline_table_0_entries_Events_le16));
@@ -240,6 +253,62 @@ static int write_root_table(AVFormatContext *s, uint64_t file_length, int sector
     avio_wl32(pb, fat_table_pos >> WTV_SECTOR_BITS); // first sector pointer
     avio_wl32(pb, depth);
 
+    /***** add table_0_header_legacy_attrib 3*****/
+    put_guid(pb, &ff_dir_entry_guid);
+    avio_wl16(pb, 176);
+    write_pad(pb, 6);
+    avio_wl64(pb, 0x5000000000000050);
+    avio_wl32(pb, sizeof(table_0_header_legacy_attrib) >> 1);
+    write_pad(pb, 4);
+    avio_write(pb, table_0_header_legacy_attrib, sizeof(table_0_header_legacy_attrib));
+    write_pad(pb, 5*16); // FIXME
+
+    /***** add table_0_entries_attrib 4*****/
+    put_guid(pb, &ff_dir_entry_guid);
+    avio_wl16(pb, 112);
+    write_pad(pb, 6);
+    avio_wl64(pb, 0x9000000000002cb8); // FIXME
+    avio_wl32(pb, sizeof(table_0_entries_legacy_attrib) >> 1);
+    write_pad(pb, 4);
+    avio_write(pb, table_0_entries_legacy_attrib, sizeof(table_0_entries_legacy_attrib));
+    avio_wl32(pb, wctx->table_entries_legacy_attrib_pos >> WTV_SECTOR_BITS); //sector pointer
+    avio_wl32(pb, 1); // depth = 1
+
+    /***** add table_0_redirector_legacy_attrib 5*****/
+    put_guid(pb, &ff_dir_entry_guid);
+    avio_wl16(pb, 112);
+    write_pad(pb, 6);
+    avio_wl64(pb, 0x9000000000000268); // FIXME
+    avio_wl32(pb, sizeof(table_0_redirector_legacy_attrib) >> 1);
+    write_pad(pb, 4);
+    avio_write(pb, table_0_redirector_legacy_attrib, sizeof(table_0_redirector_legacy_attrib));
+    avio_wl32(pb, wctx->table_redirector_legacy_attrib_pos >> WTV_SECTOR_BITS);
+    avio_wl32(pb, 0); //depth
+
+    /***** add table_0_header_time 6*****/
+    put_guid(pb, &ff_dir_entry_guid);
+    avio_wl16(pb, 168);
+    write_pad(pb, 6);
+    avio_wl64(pb, 0x5000000000000058);
+    avio_wl32(pb, sizeof(table_0_header_time) >> 1);
+    write_pad(pb, 4);
+    avio_write(pb, table_0_header_time, sizeof(table_0_header_time));
+    avio_wl32(pb, wctx->table_header_events_pos >> WTV_SECTOR_BITS); // Same with table 1
+    avio_wl32(pb, 0);
+    write_pad(pb, 5*16);// FIXME
+
+    /***** add table_0_entries_time 7*****/
+    put_guid(pb, &ff_dir_entry_guid);
+    avio_wl16(pb, 88);
+    write_pad(pb, 6);
+    avio_wl64(pb, 0x9000000000000120);
+    avio_wl32(pb, sizeof(table_0_entries_time) >> 1);
+    write_pad(pb, 4);
+    avio_write(pb, table_0_entries_time, sizeof(table_0_entries_time));
+    avio_wl32(pb, wctx->table_entries_time_pos >> WTV_SECTOR_BITS); // sector pointer
+    avio_wl32(pb, 0);
+
+    // caculate root table size
     size = avio_tell(pb) - sector_pos;
     pad = WTV_SECTOR_SIZE- size;
     write_pad(pb, pad);
@@ -279,6 +348,7 @@ static int write_fat_sector(AVFormatContext *s, int nb_sectors, int sector_bits,
     return fat;
 }
 
+// table 1
 static void write_table_header_events(AVFormatContext *s)
 {
     AVIOContext *pb = s->pb;
@@ -287,11 +357,43 @@ static void write_table_header_events(AVFormatContext *s)
     write_pad(pb, WTV_SECTOR_SIZE);
 }
 
+// table 2
+// The value is filled by zeroes, to be modified.
 static void write_table_entries_events(AVFormatContext *s)
 {
     AVIOContext *pb = s->pb;
     WtvContext *wctx = s->priv_data;
     wctx->table_entries_events_pos = avio_tell(pb);
+    write_pad(pb, WTV_SECTOR_SIZE);
+}
+
+// table 4
+// write attachement and some metadata info.
+static void write_table_entries_attrib(AVFormatContext *s)
+{
+    AVIOContext *pb = s->pb;
+    WtvContext *wctx = s->priv_data;
+    wctx->table_entries_legacy_attrib_pos = avio_tell(pb);
+    // TODO: write the content.
+}
+
+// table 5
+// unkown the value meanings.
+static void write_table_redirector_legacy_attrib(AVFormatContext *s)
+{
+    AVIOContext *pb = s->pb;
+    WtvContext *wctx = s->priv_data;
+    wctx->table_redirector_legacy_attrib_pos = avio_tell(pb);
+    // TODO: write the content.
+}
+
+// table 7
+// The content can be pad as zeroes because it is not necessary for playback.
+static void write_table_entries_time(AVFormatContext *s)
+{
+    AVIOContext *pb = s->pb;
+    WtvContext *wctx = s->priv_data;
+    wctx->table_entries_time_pos = avio_tell(pb);
     write_pad(pb, WTV_SECTOR_SIZE);
 }
 
@@ -340,18 +442,30 @@ static int write_trailer(AVFormatContext *s)
         write_pad(pb, pad);
     }
 
-    // write table header events content
+    // write table header events content 1
     write_table_header_events(s);
 
-    // write table entries events content
+    // write table entries events content 2
     write_table_entries_events(s);
 
-    //write fat table
+    // write table entries attrib content 4
+    write_table_entries_attrib(s);
+
+    // write table redirector_legacy_attrib 5
+    write_table_redirector_legacy_attrib(s);
+
+    // write table entries time 7
+    write_table_entries_time(s);
+
+    //write timeline fat table
     if (depth > 0) {
         fat_table_pos = write_fat_sector(s, nb_sectors, sector_bits, depth);
     } else {
         fat_table_pos = wctx->timeline_start_pos >> WTV_SECTOR_BITS;
     }
+
+    // write table entries attrib content 4 fat table
+    /**TODO**/
 
     // write root table
     sector_pos = avio_tell(pb);
