@@ -210,12 +210,18 @@ static void write_chunk_header2(AVFormatContext *s, const ff_asf_guid *guid, int
     avio_wl64(pb, last_chunk_pos);
 }
 
-static void finish_chunk_noindex(AVFormatContext *s, int length)
+static void finish_chunk_noindex(AVFormatContext *s)
 {
     WtvContext *wctx = s->priv_data;
     AVIOContext *pb = s->pb;
 
-    write_pad(pb, WTV_PAD8(length) - length);
+    // update the chunk_len field and pad.
+    int64_t chunk_len = avio_tell(pb) - (wctx->last_chunk_pos + wctx->timeline_start_pos);
+    avio_seek(pb, -(chunk_len - 16), SEEK_CUR);
+    avio_wl32(pb, chunk_len);
+    avio_seek(pb, chunk_len - (16 + 4), SEEK_CUR);
+
+    write_pad(pb, WTV_PAD8(chunk_len) - chunk_len);
     wctx->serial++;
 }
 
@@ -249,13 +255,13 @@ static void write_index(AVFormatContext *s)
         avio_wl64(pb, t->serial);
     }
     wctx->nb_index = 0; // reset index
-    finish_chunk_noindex(s, chunk_len);
+    finish_chunk_noindex(s);
 }
 
 static void finish_chunk(AVFormatContext *s, int length)
 {
     WtvContext *wctx = s->priv_data;
-    finish_chunk_noindex(s, length);
+    finish_chunk_noindex(s);
     if (wctx->nb_index == MAX_NB_INDEX)
         write_index(s);
 }
@@ -420,11 +426,6 @@ static int write_stream_data(AVFormatContext *s, AVStream *st, int flag)
     put_guid(pb, g); // actual_subtype
     put_guid(pb, format_type); // actual_formattype
 
-    // update the chunk_len field and pad.
-    chunk_len = avio_tell(pb) - start;
-    avio_seek(pb, -(chunk_len - 16), SEEK_CUR);
-    avio_wl32(pb, chunk_len);
-    avio_seek(pb, chunk_len - (16 + 4), SEEK_CUR);
     finish_chunk(s, chunk_len);
 
     av_set_pts_info(st, 64, 1, 10000000);
