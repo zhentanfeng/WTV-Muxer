@@ -29,6 +29,8 @@
 
 #define WTV_BIGSECTOR_SIZE (1 << WTV_BIGSECTOR_BITS)
 #define WTV_PAD8(x) (((x) + 7) & ~7)
+#define INDEX_BASE 0x2
+#define MAX_NB_INDEX 10
 
 /* declare utf16le strings */
 #define _ , 0,
@@ -52,25 +54,8 @@ static const uint8_t legacy_attrib[] =
     {'l'_'e'_'g'_'a'_'c'_'y'_'_'_'a'_'t'_'t'_'r'_'i'_'b', 0};
 #undef _
 
-static const ff_asf_guid EVENTID_SubtitleSpanningEvent =
-    {0x48,0xC0,0xCE,0x5D,0xB9,0xD0,0x63,0x41,0x87,0x2C,0x4F,0x32,0x22,0x3B,0xE8,0x8A};
-static const ff_asf_guid EVENTID_LanguageSpanningEvent =
-    {0x6D,0x66,0x92,0xE2,0x02,0x9C,0x8D,0x44,0xAA,0x8D,0x78,0x1A,0x93,0xFD,0xC3,0x95};
-static const ff_asf_guid EVENTID_AudioDescriptorSpanningEvent =
-    {0x1C,0xD4,0x7B,0x10,0xDA,0xA6,0x91,0x46,0x83,0x69,0x11,0xB2,0xCD,0xAA,0x28,0x8E};
-static const ff_asf_guid EVENTID_CtxADescriptorSpanningEvent =
-    {0xE6,0xA2,0xB4,0x3A,0x47,0x42,0x34,0x4B,0x89,0x6C,0x30,0xAF,0xA5,0xD2,0x1C,0x24};
-static const ff_asf_guid EVENTID_CSDescriptorSpanningEvent =
-    {0xD9,0x79,0xE7,0xEf,0xF0,0x97,0x86,0x47,0x80,0x0D,0x95,0xCF,0x50,0x5D,0xDC,0x66};
-static const ff_asf_guid EVENTID_DVBScramblingControlSpanningEvent =
-    {0xC4,0xE1,0xD4,0x4B,0xA1,0x90,0x09,0x41,0x82,0x36,0x27,0xF0,0x0E,0x7D,0xCC,0x5B};
-static const ff_asf_guid EVENTID_StreamIDSpanningEvent =
-    {0x68,0xAB,0xF1,0xCA,0x53,0xE1,0x41,0x4D,0xA6,0xB3,0xA7,0xC9,0x98,0xDB,0x75,0xEE};
-static const ff_asf_guid EVENTID_TeletextSpanningEvent =
-    {0x50,0xD9,0x99,0x95,0x33,0x5F,0x17,0x46,0xAF,0x7C,0x1E,0x54,0xB5,0x10,0xDA,0xA3};
-static const ff_asf_guid EVENTID_AudioTypeSpanningEvent =
-    {0xBE,0xBF,0x1C,0x50,0x49,0xB8,0xCE,0x42,0x9B,0xE9,0x3D,0xB8,0x69,0xFB,0x82,0xB3};
-
+static const ff_asf_guid DSATTRIB_TRANSPORT_PROPERTIES =
+    {0x12,0xF6,0x22,0xB6,0xAD,0x47,0x71,0x46,0xAD,0x6C,0x05,0xA9,0x8E,0x65,0xDE,0x3A};
 
 static const ff_asf_guid sub_wtv_guid =
     {0x8C,0xC3,0xD2,0xC2,0x7E,0x9A,0xDA,0x11,0x8B,0xF7,0x00,0x07,0xE9,0x5E,0xAD,0x8D};
@@ -84,24 +69,10 @@ static const ff_asf_guid sync_guid =
     {0x97,0xC3,0xD2,0xC2,0x7E,0x9A,0xDA,0x11,0x8B,0xF7,0x00,0x07,0xE9,0x5E,0xAD,0x8D};
 static const ff_asf_guid index_guid =
     {0x96,0xc3,0xd2,0xc2,0x7e,0x9a,0xda,0x11,0x8b,0xf7,0x00,0x07,0xe9,0x5e,0xad,0x8d};
-static const ff_asf_guid mediatype_mstvcaption =
-    {0x89,0x8A,0x8B,0xB8,0x49,0xB0,0x80,0x4C,0xAD,0xCF,0x58,0x98,0x98,0x5E,0x22,0xC1};
 
 /* Media subtypes */
 static const ff_asf_guid mediasubtype_cpfilters_processed =
     {0x28,0xBD,0xAD,0x46,0xD0,0x6F,0x96,0x47,0x93,0xB2,0x15,0x5C,0x51,0xDC,0x04,0x8D};
-static const ff_asf_guid mediatype_mpeg2_pes =
-    {0x20,0x80,0x6D,0xE0,0x46,0xDB,0xCF,0x11,0xB4,0xD1,0x00,0x80,0x5F,0x6C,0xBB,0xEA};
-static const ff_asf_guid mediatype_mpeg2_sections =
-    {0x6C,0x17,0x5F,0x45,0x06,0x4B,0xCE,0x47,0x9A,0xEF,0x8C,0xAE,0xF7,0x3D,0xF7,0xB5};
-static const ff_asf_guid mediasubtype_dvb_subtitle =
-    {0xC3,0xCB,0xFF,0x34,0xB3,0xD5,0x71,0x41,0x90,0x02,0xD4,0xC6,0x03,0x01,0x69,0x7F};
-static const ff_asf_guid mediasubtype_mpeg2data =
-    {0x5B,0xE5,0x92,0xC8,0x2D,0x25,0xB5,0x42,0xA3,0x16,0xD9,0x97,0xE7,0xA5,0xD9,0x95};
-static const ff_asf_guid mediasubtype_teletext =
-    {0xE3,0x76,0x2A,0xF7,0x0A,0xEB,0xD0,0x11,0xAC,0xE4,0x00,0x00,0xC0,0xCC,0x16,0xBA};
-static const ff_asf_guid mediasubtype_mpeg2_sections =
-    {0x79,0x85,0x9F,0x4A,0xF8,0x6B,0x92,0x43,0x8A,0x6D,0xD2,0xDD,0x09,0xFA,0x78,0x61};
 
 /* Formats */
 static const ff_asf_guid format_cpfilters_processed =
@@ -151,8 +122,6 @@ static const uint8_t ff_wtv_filename_len[] = {
     sizeof(table_0_entries_time),
 };
 
-//#include "test.h"
-
 typedef struct {
     int64_t length;
     const void *header;
@@ -167,7 +136,6 @@ typedef struct {
     int                 stream_id;
 } WtvIndexEntry;
 
-#define MAX_NB_INDEX 10
 typedef struct {
     int64_t timeline_start_pos;
     WtvFile file[WTV_FILES];
@@ -334,32 +302,6 @@ static void write_stream1_vid(AVFormatContext *s, int stream_id)
     finish_chunk(s, 0x144);
 }
 
-#if 0
-//FIXME: may use this later when implementing subtitles
-static void write_stream1_sub(AVFormatContext *s, int stream_id)
-{
-    AVIOContext *pb = s->pb;
-
-    write_chunk_header2(s, &stream1_guid, 0x4C, 0x80000000 | stream_id);
-
-    avio_wl32(pb, stream_id);
-    write_pad(pb, 4);
-
-    write_pad(pb, 4);
-
-    put_guid(pb, &mediatype_mpeg2_pes);
-    put_guid(pb, &mediasubtype_dvb_subtitle);
-    avio_wl32(pb, 1); //FIXME: unknown
-    avio_wl32(pb, 0); //FIXME: unknown
-    avio_wl16(pb, 0); //FIXME: unknown
-    avio_wl16(pb, 1); //FIXME: unknown
-    put_guid(pb, &ff_format_none);
-    avio_wl32(pb, 0);
-
-    finish_chunk(s, 0x4C);
-}
-#endif
-
 static void write_stream1(AVFormatContext *s, int stream_id)
 {
     AVIOContext *pb = s->pb;
@@ -407,273 +349,6 @@ static void write_sync(AVFormatContext *s)
 
     wctx->last_chunk_pos = last_chunk_pos;
 }
-
-#if 0
-//FIXME: still not sure what stream2_guid is used for
-static void write_stream2_cpfilters_audio(AVFormatContext *s, int stream_id)
-{
-    AVIOContext *pb = s->pb;
-    const ff_asf_guid *g = get_codec_guid(s->streams[0]->codec->codec_id, ff_codec_wav_guids);
-    static const uint8_t format[] = { 0x50, 0x00, 0x02, 0x00, 0x80, 0xbb, 0x00, 0x00, 0x00, 0x7d, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x16, 0x00, 0x02, 0x00, 0x00, 0xe8, 0x03, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x1c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-
-    if (!g) return;
-
-    write_chunk_header2(s, &stream2_guid, 0x8C, 0x80000000 | stream_id);
-
-    avio_wl32(pb, 0);
-
-    put_guid(pb, &ff_mediatype_audio);
-    put_guid(pb, &mediasubtype_cpfilters_processed);
-    avio_wl32(pb, 1); //FIXME: unknown
-    avio_wl32(pb, 0); //FIXME: unknown
-    avio_wl16(pb, 0); //FIXME: unknown
-    avio_wl16(pb, 1); //FIXME: unknown
-    put_guid(pb, &format_cpfilters_processed);
-    avio_wl32(pb, sizeof(format) + 32); //FIXME: length
-    avio_write(pb, format, sizeof(format));
-    put_guid(pb, g);
-    put_guid(pb, &format_waveformatex);
-
-    finish_chunk(s, 0x8C);
-}
-#endif
-
-#define INDEX_BASE 0x2
-
-static int write_stream_info(AVFormatContext *s)
-{
-    AVIOContext *pb = s->pb;
-    int i = 0;
-
-    for (; i < s->nb_streams; i++) {
-        AVStream *st = s->streams[i];
-        int64_t chunk_start = avio_tell(pb);
-        int64_t chunk_end;
-        int chunk_len;
-
-        write_chunk_header2(s, &ff_stream_guid, 0, 0x80000000 | (st->index + INDEX_BASE));
-
-        avio_wl32(pb, 1);
-        avio_wl32(pb, (st->index + INDEX_BASE));
-
-        avio_wl32(pb, 1);
-        write_pad(pb, 8);
-
-        if (st->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
-           /* note: this is not working with DirectShow or WMC at present */
-
-    static const uint8_t format[] = {
- 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0, 0x02, 0x00, 0x00,
- 0xe0, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
- 0x00, 0x00, 0x00, 0x00, 0x00, 0x1b, 0xb7, 0x00, 0x00, 0x00, 0x00, 0x00, 0xb1, 0x8b, 0x02, 0x00,
- 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00,
- 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x00, 0x00, 0x00,
- 0xc0, 0x02, 0x00, 0x00, 0xe0, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4d, 0x50, 0x45, 0x47,
- 0x00, 0x00, 0x00, 0x00, 0xd0, 0x07, 0x00, 0x00, 0x42, 0xd8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
- 0x00, 0x00, 0x00, 0x00, 0xc0, 0x27, 0xc8, 0x00, 0x4c, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
- 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0xb3, 0x2c, 0x01, 0xe0, 0x37,
- 0x1d, 0x4c, 0x23, 0x81, 0x10, 0x11, 0x11, 0x12, 0x12, 0x12, 0x13, 0x13, 0x13, 0x13, 0x14, 0x14,
- 0x14, 0x14, 0x14, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16,
- 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x18, 0x18, 0x18, 0x19, 0x18, 0x18, 0x18, 0x19,
- 0x1a, 0x1a, 0x1a, 0x1a, 0x19, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1c, 0x1c, 0x1c, 0x1c, 0x1e, 0x1e,
- 0x1e, 0x1f, 0x1f, 0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    };
-            const ff_asf_guid *g = get_codec_guid(st->codec->codec_id, ff_video_guids);
-            if (g == NULL) {
-                av_log(s, AV_LOG_ERROR, "can't get video codec_id (0x%x) guid.\n", st->codec->codec_id);
-                return -1;
-            }
-            put_guid(pb, &ff_mediatype_video);
-            put_guid(pb, g);
-            write_pad(pb, 12);
-            put_guid(pb, &format_mpeg2_video);
-
-            avio_wl32(pb, sizeof(format));
-            avio_write(pb, format, sizeof(format));
-
-            av_set_pts_info(st, 64, 1, 10000000);
-        } else if (st->codec->codec_type == AVMEDIA_TYPE_AUDIO) {
-            int wav_size;
-            ff_asf_guid tmp;
-            const ff_asf_guid *g = get_codec_guid(st->codec->codec_id, ff_codec_wav_guids);
-            if (!g) {
-                unsigned int tag = ff_codec_get_tag(ff_codec_wav_tags, st->codec->codec_id);
-                if (!tag) {
-                    av_log(s, AV_LOG_ERROR, "No wav codec ID found.\n");
-                    return -1;
-                }
-                AV_WL32(tmp, tag);
-                memcpy(tmp + 4, (const uint8_t[]){FF_MEDIASUBTYPE_BASE_GUID}, 12);
-                g = (const ff_asf_guid *)&tmp;
-            }
-#if 0
-            /* encode wave header directly, NOTE: this works for DirectShow, NOT for WMC (yet) */
-            put_guid(pb, &ff_mediatype_audio);
-            put_guid(pb, g); // sub media type, the code ID should match the GUID.
-            avio_wl32(pb, 0); //FIXME: unknown, default 1, GraphStudio doesnt care
-            avio_wl32(pb, 0); //FIXME: unknown, default 0, GraphStudio doesnt care
-            avio_wl16(pb, 0); //FIXME: unknown, default 0, GraphStudio doesnt care
-            avio_wl16(pb, 0); //FIXME: unknown, default 1, GraphStudio doesnt care
-            put_guid(pb, &format_waveformatex);
-
-            avio_seek(pb, 4, SEEK_CUR);
-            wav_size = ff_put_wav_header(pb, st->codec);
-            if (wav_size < 0)
-                return -1;
-            avio_seek(pb, -(wav_size + 4), SEEK_CUR);
-            avio_wl32(pb, wav_size);
-            avio_seek(pb, wav_size, SEEK_CUR);
-#else
-            /* encapsulate wave header in cpfilters_processed mediatype */
-            put_guid(pb, &ff_mediatype_audio);
-            put_guid(pb, &mediasubtype_cpfilters_processed);
-            avio_wl32(pb, 0); //FIXME: unknown, default 1, GraphStudio/WMC doesnt care
-            avio_wl32(pb, 0); //FIXME: unknown, default 0, GraphStudio/WMC doesnt care
-            avio_wl16(pb, 0); //FIXME: unknown, default 0, GraphStudio/WMC doesnt care
-            avio_wl16(pb, 0); //FIXME: unknown, default 1, GraphStudio/WMC doesnt care
-            put_guid(pb, &format_cpfilters_processed);
-
-            avio_seek(pb, 4, SEEK_CUR);
-            wav_size = ff_put_wav_header(pb, st->codec);
-            if (wav_size < 0)
-                return -1;
-            avio_seek(pb, -(wav_size + 4), SEEK_CUR);
-            avio_wl32(pb, wav_size + 32);
-            avio_seek(pb, wav_size, SEEK_CUR);
-
-            put_guid(pb, g);
-            put_guid(pb, &format_waveformatex);
-#endif
-            av_set_pts_info(st, 64, 1, 10000000);
-        } else {
-            //FIXME: output subtitles
-
-            av_log(s, AV_LOG_ERROR, "unknown codec_type (0x%x)\n", st->codec->codec_type);
-            return -1;
-        }
-
-        // update the chunk_len field and finish
-        chunk_end = avio_tell(pb);
-        chunk_len = chunk_end - chunk_start;
-        avio_seek(pb, chunk_start + 16, SEEK_SET);
-        avio_wl32(pb, chunk_len);
-        avio_seek(pb, chunk_end, SEEK_SET);
-
-        finish_chunk(s, chunk_len);
-    }
-
-    return 0;
-}
-
-static const ff_asf_guid EVENTID_ChannelTypeSpanningEvent =
-    {0x51,0x1D,0xAB,0x72,0xD2,0x87,0x9B,0x48,0xBA,0x11,0x0E,0x08,0xDC,0x21,0x02,0x43};
-static const ff_asf_guid EVENTID_ChannelChangeSpanningEvent =
-    {0xE5,0xC5,0x67,0x90,0x5C,0x4C,0x05,0x42,0x86,0xC8,0x7A,0xFE,0x20,0xFE,0x1E,0xFA};
-static const ff_asf_guid EVENTID_ChannelInfoSpanningEvent =
-    {0x80,0x6D,0xF3,0x41,0x32,0x41,0xC2,0x4C,0xB1,0x21,0x01,0xA4,0x32,0x19,0xD8,0x1B};
-static const ff_asf_guid EVENTID_StreamTypeSpanningEvent =
-    {0xBC,0x2E,0xAF,0x82,0xA6,0x30,0x64,0x42,0xA8,0x0B,0xAD,0x2E,0x13,0x72,0xAC,0x60};
-static const ff_asf_guid EVENTID_PIDListSpanningEvent =
-    {0x65,0x8F,0xFC,0x47,0xBB,0xE2,0x34,0x46,0x9C,0xEF,0xFD,0xBF,0xE6,0x26,0x1D,0x5C};
-static const ff_asf_guid EVENTID_SignalAndServiceStatusSpanningEvent =
-    {0xCB,0xC5,0x68,0x80,0x04,0x3C,0x2B,0x49,0xB4,0x7D,0x03,0x08,0x82,0x0D,0xCE,0x51};
-static const ff_asf_guid DSATTRIB_TRANSPORT_PROPERTIES =
-    {0x12,0xF6,0x22,0xB6,0xAD,0x47,0x71,0x46,0xAD,0x6C,0x05,0xA9,0x8E,0x65,0xDE,0x3A};
-static const ff_asf_guid DSATTRIB_CAPTURE_STREAMTIME =
-    {0x14,0x56,0x1A,0x0C,0xCD,0x30,0x40,0x4F,0xBC,0xBF,0xD0,0x3E,0x52,0x30,0x62,0x07};
-
-#if 0
-//FIXME: write_EVENT_xxx() were included for testing. It seems they are not required for basic playback.
-static void write_EVENT_ChannelTypeSpanningEvent(AVFormatContext *s)
-{
-    AVIOContext *pb = s->pb;
-    static const uint8_t data[] = {0x05,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x47,0xe4,0x2f,0x00,0x00,0x00,0x00,0x00};
-    write_chunk_header2(s, &EVENTID_ChannelTypeSpanningEvent, sizeof(data), 0x80000000);
-    avio_write(pb, data, sizeof(data));
-    finish_chunk(s, sizeof(data));
-}
-
-static void write_EVENTID_ChannelChangeSpanningEvent(AVFormatContext *s)
-{
-    AVIOContext *pb = s->pb;
-    static const uint8_t data[] = {0x02,0x00,0x00,0x00,0x4b,0x91,0xbb,0x75,0x47,0xe4,0x2f,0x00,0x00,0x00,0x00,0x00};
-    write_chunk_header2(s, &EVENTID_ChannelChangeSpanningEvent, sizeof(data), 0x80000000);
-    avio_write(pb, data, sizeof(data));
-    finish_chunk(s, sizeof(data));
-}
-
-static void write_EVENTID_ChannelInfoSpanningEvent(AVFormatContext *s)
-{
-    AVIOContext *pb = s->pb;
-    static const uint8_t data[] = {0x31,0x30,0x08,0x00,0x02,0x32,0x00,0x00,0x10,0x03,0x00,0x00,0x1e,0x03,0x00,0x00};
-    write_chunk_header2(s, &EVENTID_ChannelInfoSpanningEvent, sizeof(data), 0x80000000);
-    avio_write(pb, data, sizeof(data));
-    finish_chunk(s, sizeof(data));
-}
-
-static void write_EVENTID_StreamTypeSpanningEvent(AVFormatContext *s, int stream_index)
-{
-    static const uint8_t data[] = {0x04,0x00,0x00,0x00};
-    AVIOContext *pb = s->pb;
-    write_chunk_header2(s, &EVENTID_StreamTypeSpanningEvent, sizeof(data), 0x80000000 | stream_index);
-    avio_write(pb, data, sizeof(data));
-    finish_chunk(s, sizeof(data));
-}
-
-static void write_EVENTID_AudioTypeSpanningEvent(AVFormatContext *s, int stream_index)
-{
-    static const uint8_t data[] = {0x00};
-    AVIOContext *pb = s->pb;
-    write_chunk_header2(s, &EVENTID_AudioTypeSpanningEvent, sizeof(data), 0x80000000 | stream_index);
-    avio_write(pb, data, sizeof(data));
-    finish_chunk(s, sizeof(data));
-}
-
-static void write_EVENTID_LanguageSpanningEvent(AVFormatContext *s, int stream_index)
-{
-    static const uint8_t data[] = {0x09,0x04,0xac,0x60,0x65,0x6e,0x67,0x00};
-    AVIOContext *pb = s->pb;
-    write_chunk_header2(s, &EVENTID_LanguageSpanningEvent, sizeof(data), 0x80000000 | stream_index);
-    avio_write(pb, data, sizeof(data));
-    finish_chunk(s, sizeof(data));
-}
-
-static void write_EVENTID_StreamIDSpanningEvent(AVFormatContext *s, int stream_index)
-{
-    static const uint8_t data[] = {0x52,0x01,0x97};
-    AVIOContext *pb = s->pb;
-    write_chunk_header2(s, &EVENTID_StreamIDSpanningEvent, sizeof(data), 0x80000000 | stream_index);
-    avio_write(pb, data, sizeof(data));
-    finish_chunk(s, sizeof(data));
-}
-
-static void write_EVENTID_PIDListSpanningEvent(AVFormatContext *s, int stream_index)
-{
-    static const uint8_t data[] = {0x01,0x00,0x43,0x02,0xc9,0x00,0x00,0x00};
-    AVIOContext *pb = s->pb;
-    write_chunk_header2(s, &EVENTID_PIDListSpanningEvent, sizeof(data), 0x80000000 | stream_index);
-    avio_write(pb, data, sizeof(data));
-    finish_chunk(s, sizeof(data));
-}
-
-static void write_EVENTID_SignalAndServiceStatusSpanningEvent(AVFormatContext *s)
-{
-    static const uint8_t data[] = {0x00,0x00,0x00,0x00};
-    AVIOContext *pb = s->pb;
-    write_chunk_header2(s, &EVENTID_SignalAndServiceStatusSpanningEvent, sizeof(data), 0x80000000);
-    avio_write(pb, data, sizeof(data));
-    finish_chunk(s, sizeof(data));
-}
-
-static void write_EVENTID_DVBScramblingControlSpanningEvent(AVFormatContext *s, int stream_index)
-{
-    static const uint8_t data[] = {0xc9,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-    AVIOContext *pb = s->pb;
-    write_chunk_header2(s, &EVENTID_DVBScramblingControlSpanningEvent, sizeof(data), 0x80000000 | stream_index);
-    avio_write(pb, data, sizeof(data));
-    finish_chunk(s, sizeof(data));
-}
-#endif
 
 static void write_DSATTRIB_TRANSPORT_PROPERTIES_init(AVFormatContext *s, int stream_index)
 {
@@ -759,7 +434,6 @@ static int write_stream_data(AVFormatContext *s, AVStream *st, int flag)
 
 static int write_stream_info_new(AVFormatContext *s)
 {
-    AVIOContext *pb = s->pb;
     int i = 0;
     for (; i < s->nb_streams; i++) {
         int ret;
