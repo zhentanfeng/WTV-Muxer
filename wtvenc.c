@@ -380,10 +380,10 @@ static int write_stream_data(AVFormatContext *s, AVStream *st, int flag)
         avio_wl32(pb, 0x00000001); // pad
         avio_wl32(pb, st->index + INDEX_BASE); //stream_id
         avio_wl32(pb, 0x00000001); // pad
-        write_pad(pb, 8); //pad
+        write_pad(pb, 8);
     } else {
         write_chunk_header2(s, &stream2_guid, 0x00/*FIXME*/, 0x80000000 | (st->index + INDEX_BASE));
-        write_pad(pb, 4); // pad
+        write_pad(pb, 4);
     }
 
     if (st->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
