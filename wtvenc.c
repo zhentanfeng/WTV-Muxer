@@ -445,7 +445,6 @@ static int write_header(AVFormatContext *s)
     put_guid(pb, &ff_wtv_guid);
     put_guid(pb, &sub_wtv_guid);
 
-    // It seems fixed value. unknown meanings.
     avio_wl32(pb, 0x01);
     avio_wl32(pb, 0x02);
     avio_wl32(pb, 0x1000);
@@ -473,7 +472,6 @@ static int write_header(AVFormatContext *s)
 
     write_stream1(s, 0x1);
 
-    //write_stream_info(s);  // must be placed after stream1, and before DSATTRIB_TRANSPORT_PROPERTIES
     write_stream_info_new(s);
     for (i = 0; i < s->nb_streams; i++)
         write_DSATTRIB_TRANSPORT_PROPERTIES_init(s, INDEX_BASE + i);
