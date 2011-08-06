@@ -344,7 +344,7 @@ static void write_DSATTRIB_TRANSPORT_PROPERTIES_init(AVFormatContext *s, int str
 {
     AVIOContext *pb = s->pb;
     write_chunk_header2(s, &DSATTRIB_TRANSPORT_PROPERTIES, 0x18, 0x80000000 | stream_index);
-    avio_wl64(pb, 0xc9); // identifier (used by subsequence PROPERTIES)
+    avio_wl64(pb, stream_index);
     avio_wl64(pb, -1);
     avio_wl64(pb, 0);
     finish_chunk(s, 0x18);
