@@ -145,12 +145,6 @@ typedef struct {
     //FIXME: rename to 'header' entries or sth more meaningful
     WtvIndexEntry index[MAX_NB_INDEX];
     int nb_index;
-
- //FIXME: the 'index_guid' chunk makes reference to previous index chunks, but this feature seems optional
-//     implemented for testing, remove it later
-#define MAX_NB_CHUNKS  100
-    int64_t chunks[MAX_NB_CHUNKS];
-    int nb_chunks;
 } WtvContext;
 
 static int write_pad(AVIOContext *pb, int size)
@@ -229,22 +223,12 @@ static void write_index(AVFormatContext *s)
 {
     AVIOContext *pb = s->pb;
     WtvContext *wctx = s->priv_data;
-    int chunk_len = 8 + wctx->nb_chunks * 8 + wctx->nb_index * 0x28;
+    int chunk_len = 8 + wctx->nb_index * 0x28;
     int i;
 
     write_chunk_header2(s, &index_guid, chunk_len, 0x80000000);
-#if 1
-    /* FIXME: optional feature */
-    avio_wl32(pb, wctx->nb_chunks);
-    avio_wl32(pb, 0); // checksum?
-    for (i = 0; i < wctx->nb_chunks; i++)
-        avio_wl64(pb, wctx->chunks[i]);
-    wctx->chunks[wctx->nb_chunks] = wctx->last_chunk_pos;
-    wctx->nb_chunks++;
-#else
     avio_wl32(pb, 0);
-    avio_wl32(pb, 0x649f70);
-#endif
+    avio_wl32(pb, 0);
 
     for (i = 0; i < wctx->nb_index; i++) {
         WtvIndexEntry *t = wctx->index + i;
