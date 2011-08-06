@@ -447,8 +447,8 @@ static int write_header(AVFormatContext *s)
 
     avio_wl32(pb, 0x01);
     avio_wl32(pb, 0x02);
-    avio_wl32(pb, 0x1000);
-    avio_wl32(pb, 0x040000);
+    avio_wl32(pb, 1 << WTV_SECTOR_BITS);
+    avio_wl32(pb, 1 << WTV_BIGSECTOR_BITS);
 
     //write initial root fields
     avio_wl32(pb, 0);  // root_size, update later
