@@ -360,13 +360,13 @@ static int write_stream_data(AVFormatContext *s, AVStream *st, int flag)
     start = avio_tell(pb);
 
     if (!flag) {
-        write_chunk_header2(s, &ff_stream_guid, 0x00/*FIXME*/, 0x80000000 | (st->index + INDEX_BASE));
-        avio_wl32(pb, 0x00000001); // pad
+        write_chunk_header2(s, &ff_stream_guid, 0x00/*update later*/, 0x80000000 | (st->index + INDEX_BASE));
+        avio_wl32(pb, 0x00000001);
         avio_wl32(pb, st->index + INDEX_BASE); //stream_id
-        avio_wl32(pb, 0x00000001); // pad
+        avio_wl32(pb, 0x00000001);
         write_pad(pb, 8);
     } else {
-        write_chunk_header2(s, &stream2_guid, 0x00/*FIXME*/, 0x80000000 | (st->index + INDEX_BASE));
+        write_chunk_header2(s, &stream2_guid, 0x00/*update later*/, 0x80000000 | (st->index + INDEX_BASE));
         write_pad(pb, 4);
     }
 
