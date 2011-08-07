@@ -141,6 +141,7 @@ typedef struct {
     WtvFile file[WTV_FILES];
     int64_t serial;          //chunk serial number
     int64_t last_chunk_pos;  // last chunk position
+    int64_t frame_nb;
 
     //FIXME: rename to 'header' entries or sth more meaningful
     WtvIndexEntry index[MAX_NB_INDEX];
@@ -479,13 +480,24 @@ static int write_header(AVFormatContext *s)
 static void write_timestamp(AVFormatContext *s, AVPacket *pkt)
 {
     AVIOContext *pb = s->pb;
+    WtvContext  *wctx = s->priv_data;
+    AVCodecContext *enc = s->streams[pkt->stream_index]->codec;
+    int flag = 0;
+    int64_t frame_number = 0;
+
+    if (enc->codec_type == AVMEDIA_TYPE_VIDEO) {
+        wctx->frame_nb++;
+        frame_number = wctx->frame_nb;
+        flag = pkt->flags & AV_PKT_FLAG_KEY ? 1 : 0;
+    }
     write_chunk_header(s, &ff_timestamp_guid, 56, 0x40000000 | (INDEX_BASE + pkt->stream_index));
     write_pad(pb, 8);
     avio_wl64(pb, pkt->pts == AV_NOPTS_VALUE ? -1 : pkt->pts);
     avio_wl64(pb, pkt->pts == AV_NOPTS_VALUE ? -1 : pkt->pts);
-    avio_wl64(pb, 0x57e400);  //FIXME: required for WMC playback; most likely the 'duration' of the data packet (time unit unknown)
+
+    avio_wl64(pb, frame_number);
     avio_wl64(pb, 0);
-    avio_wl64(pb, 1);
+    avio_wl64(pb, flag);
     avio_wl64(pb, 0);
 }
 
