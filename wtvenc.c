@@ -308,34 +308,24 @@ static int write_stream_codec_info(AVFormatContext *s, AVStream *st)
     return 0;   
 }
 
-static void write_stream1_video(AVFormatContext *s, int stream_id)
-{
-    WtvContext *wctx = s->priv_data;
-    AVIOContext *pb = s->pb;
-    int64_t hdr_pos_start;
-    int hdr_size = 0;
-
-    write_chunk_header2(s, &stream1_guid, 0x144, 0x80000000 | stream_id);
-
-    avio_wl32(pb, stream_id);
-    write_pad(pb, 4);
-
-    write_pad(pb, 4);
-    wctx->first_video_flag = 1;
-    write_stream_codec_info(s, s->streams[0]);
-    finish_chunk(s, 0x144);
-}
-
-static void write_stream1_audio(AVFormatContext *s, int stream_id)
+static int write_stream_codec(AVFormatContext *s, AVStream * st)
 {
     AVIOContext *pb = s->pb;
-    write_chunk_header2(s, &stream1_guid, 0x144, 0x80000000 | stream_id);
-    avio_wl32(pb, stream_id);
+    int ret;
+    write_chunk_header2(s, &stream1_guid, 0x144, 0x80000000 | 0x01);
+
+    avio_wl32(pb,  0x01);
+    write_pad(pb, 4);
     write_pad(pb, 4);
 
-    write_pad(pb, 4);
-    write_stream_codec_info(s, s->streams[1]);
-    finish_chunk(s, 0x144);
+    ret = write_stream_codec_info(s, st);
+    if (ret < 0) {
+        av_log(s, AV_LOG_ERROR, "write stream codec info failed codec_type(0x%x)\n", st->codec->codec_type);
+        return -1;
+    }
+
+    finish_chunk(s, 0);
+    return 0;
 }
 
 static void write_sync(AVFormatContext *s)
@@ -420,13 +410,20 @@ static int write_header(AVFormatContext *s)
 
     wctx->serial = 1;
     wctx->last_chunk_pos = -1;
+    wctx->first_video_flag = 1;
 
-    // the very first chunk must be 'stream1_guid'
-    write_stream1_video(s, 0x1);  //a video stream must be present for WMC to decode, even if there is no video stream
-                                //DirectShow 'StreamBufferSource' will work without this
-    write_sync(s);
-
-    write_stream1_audio(s, 0x1);
+    for (i = 0; i < s->nb_streams; i++) {
+        int ret;
+        AVStream *st = s->streams[i];
+        ret = write_stream_codec(s, st);
+        if (ret < 0) {
+            av_log(s, AV_LOG_ERROR, "write stream codec failed codec_type(0x%x)\n", st->codec->codec_type);
+            return -1;
+        }
+        if (i + 1 < s->nb_streams) {
+            write_sync(s);
+        }
+    }
 
     for (i = 0; i < s->nb_streams; i++) {
         int ret;
