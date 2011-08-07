@@ -417,26 +417,6 @@ static int write_stream_data(AVFormatContext *s, AVStream *st, int flag)
     return 0;
 }
 
-static int write_stream_info_new(AVFormatContext *s)
-{
-    int i = 0;
-    for (; i < s->nb_streams; i++) {
-        int ret;
-        AVStream *st = s->streams[i];
-        ret  = write_stream_data(s, st, 0);
-        if (ret < 0) {
-            av_log(s, AV_LOG_ERROR, "write stream data failed codec_type(0x%x)\n", st->codec->codec_type);
-            return -1;
-        }
-        ret = write_stream_data(s, st, 1);
-        if (ret < 0) {
-            av_log(s, AV_LOG_ERROR, "write stream2 data failed codec_type(0x%x)\n", st->codec->codec_type);
-            return -1;
-        }
-    }
-    return 0;
-}
-
 static int write_header(AVFormatContext *s)
 {
     AVIOContext *pb = s->pb;
@@ -472,7 +452,21 @@ static int write_header(AVFormatContext *s)
 
     write_stream1(s, 0x1);
 
-    write_stream_info_new(s);
+    for (i = 0; i < s->nb_streams; i++) {
+        int ret;
+        AVStream *st = s->streams[i];
+        ret  = write_stream_data(s, st, 0);
+        if (ret < 0) {
+            av_log(s, AV_LOG_ERROR, "write stream data failed codec_type(0x%x)\n", st->codec->codec_type);
+            return -1;
+        }
+        ret = write_stream_data(s, st, 1);
+        if (ret < 0) {
+            av_log(s, AV_LOG_ERROR, "write stream2 data failed codec_type(0x%x)\n", st->codec->codec_type);
+            return -1;
+        }
+    }
+
     for (i = 0; i < s->nb_streams; i++)
         write_DSATTRIB_TRANSPORT_PROPERTIES_init(s, INDEX_BASE + i);
 
