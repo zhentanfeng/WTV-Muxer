@@ -251,6 +251,56 @@ static void finish_chunk(AVFormatContext *s, int length)
         write_index(s);
 }
 
+static int write_stream_codec_info(AVFormatContext *s, AVStream *st)
+{
+    const ff_asf_guid *g, *media_type, *format_type;
+    AVIOContext *pb = s->pb;
+    int64_t  hdr_pos_start;
+    int hdr_size = 0;
+
+    if (st->codec->codec_type  == AVMEDIA_TYPE_VIDEO) {
+        g = get_codec_guid(st->codec->codec_id, ff_video_guids);
+        media_type = &ff_mediatype_video;
+        format_type = &format_mpeg2_video;
+    } else if (st->codec->codec_type == AVMEDIA_TYPE_AUDIO) {
+        g = get_codec_guid(st->codec->codec_id, ff_codec_wav_guids);
+        media_type = &ff_mediatype_audio;
+        format_type = &format_waveformatex;
+    }  else {
+        av_log(s, AV_LOG_ERROR, "unknown codec_type (0x%x)\n", st->codec->codec_type);
+        return -1;
+    }
+
+    if (g == NULL) {
+        av_log(s, AV_LOG_ERROR, "can't get video codec_id (0x%x) guid.\n", st->codec->codec_id);
+        return -1;
+    }
+
+    put_guid(pb, media_type); // mediatype
+    put_guid(pb, &mediasubtype_cpfilters_processed); // subtype
+    write_pad(pb, 12);
+    put_guid(pb,&format_cpfilters_processed); // format type
+    avio_wl32(pb, 0); // size
+    
+    hdr_pos_start = avio_tell(pb);
+    if (st->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
+        write_pad(pb, 72); // aspect ratio
+        ff_put_bmp_header(pb, st->codec, ff_codec_bmp_tags, 0);
+    } else {
+        ff_put_wav_header(pb, st->codec);
+    }
+    hdr_size = avio_tell(pb) - hdr_pos_start;
+    
+    // seek back write hdr_size
+    avio_seek(pb, -(hdr_size + 4), SEEK_CUR);
+    avio_wl32(pb, hdr_size + 32);
+    avio_seek(pb, hdr_size, SEEK_CUR);
+    put_guid(pb, g); // actual_subtype
+    put_guid(pb, format_type); // actual_formattype
+
+    return 0;   
+}
+
 static void write_stream1_vid(AVFormatContext *s, int stream_id)
 {
     AVIOContext *pb = s->pb;
@@ -354,12 +404,9 @@ static void write_DSATTRIB_TRANSPORT_PROPERTIES_init(AVFormatContext *s, int str
 static int write_stream_data(AVFormatContext *s, AVStream *st, int flag)
 {
     AVIOContext *pb = s->pb;
-    const ff_asf_guid *g, *media_type, *format_type;
-    int64_t  hdr_pos_start, start, chunk_len;
-    int hdr_size = 0;
+    int64_t  chunk_len;
+    int ret;
     
-    start = avio_tell(pb);
-
     if (!flag) {
         write_chunk_header2(s, &ff_stream_guid, 0x00/*update later*/, 0x80000000 | (st->index + INDEX_BASE));
         avio_wl32(pb, 0x00000001);
@@ -371,46 +418,11 @@ static int write_stream_data(AVFormatContext *s, AVStream *st, int flag)
         write_pad(pb, 4);
     }
 
-    if (st->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
-        g = get_codec_guid(st->codec->codec_id, ff_video_guids);
-        media_type = &ff_mediatype_video;
-        format_type = &format_mpeg2_video;
-    } else if (st->codec->codec_type == AVMEDIA_TYPE_AUDIO) {
-        g = get_codec_guid(st->codec->codec_id, ff_codec_wav_guids);
-        media_type = &ff_mediatype_audio;
-        format_type = &format_waveformatex;
-    }  else {
-        av_log(s, AV_LOG_ERROR, "unknown codec_type (0x%x)\n", st->codec->codec_type);
+    ret = write_stream_codec_info(s, st);
+    if (ret < 0) {
+        av_log(s, AV_LOG_ERROR, "write stream codec info failed codec_type(0x%x)\n", st->codec->codec_type);
         return -1;
     }
-
-    if (g == NULL) {
-        av_log(s, AV_LOG_ERROR, "can't get video codec_id (0x%x) guid.\n", st->codec->codec_id);
-        return -1;
-    }
-
-    put_guid(pb, media_type); // mediatype
-    put_guid(pb, &mediasubtype_cpfilters_processed); // subtype
-    write_pad(pb, 12);
-    put_guid(pb,&format_cpfilters_processed); // format type
-    avio_wl32(pb, 0); // size
-    
-    hdr_pos_start = avio_tell(pb);
-    if (st->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
-        write_pad(pb, 72); // aspect ratio
-        ff_put_bmp_header(pb, st->codec, ff_codec_bmp_tags, 0);
-    } else {
-        ff_put_wav_header(pb, st->codec);
-    }
-    hdr_size = avio_tell(pb) - hdr_pos_start;
-    
-    // seek back write hdr_size
-    avio_seek(pb, -(hdr_size + 4), SEEK_CUR);
-    avio_wl32(pb, hdr_size + 32);
-    avio_seek(pb, hdr_size, SEEK_CUR);
-    put_guid(pb, g); // actual_subtype
-    put_guid(pb, format_type); // actual_formattype
-
     finish_chunk(s, chunk_len);
 
     av_set_pts_info(st, 64, 1, 10000000);
