@@ -436,7 +436,7 @@ static int write_header(AVFormatContext *s)
     avio_wl32(pb, 0); // root_sector, update it later.
 
     write_pad(pb, 32);
-    avio_wl32(pb, 0x0600); // unknown field. should not be 0x0000, 0x0*00 seems ok
+    avio_wl32(pb, 0); // file ends pointer, update it later. 
 
     pad = (1 << WTV_SECTOR_BITS) - avio_tell(pb);
     write_pad(pb, pad);
@@ -750,7 +750,7 @@ static int write_trailer(AVFormatContext *s)
     AVIOContext *pb = s->pb;
     int root_size;
     int64_t sector_pos;
-    int64_t start_pos;
+    int64_t start_pos, file_end_pos;
 
     if (finish_file(s, WTV_TIMELINE, wctx->timeline_start_pos) < 0)
         return -1;
@@ -785,11 +785,14 @@ static int write_trailer(AVFormatContext *s)
     sector_pos = avio_tell(pb);
     root_size = write_root_table(s, sector_pos);
 
+    file_end_pos = avio_tell(pb);
     // update root value
     avio_seek(pb, 0x30, SEEK_SET);
     avio_wl32(pb, root_size);
     avio_seek(pb, 4, SEEK_CUR);
     avio_wl32(pb, sector_pos >> WTV_SECTOR_BITS);
+    avio_seek(pb, 0x5c, SEEK_SET);
+    avio_wl32(pb, file_end_pos >> WTV_SECTOR_BITS);
 
     avio_flush(pb);
     return 0;
