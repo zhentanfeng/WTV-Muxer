@@ -146,6 +146,7 @@ typedef struct {
     //FIXME: rename to 'header' entries or sth more meaningful
     WtvIndexEntry index[MAX_NB_INDEX];
     int nb_index;
+    int first_video_flag;
 } WtvContext;
 
 static int write_pad(AVIOContext *pb, int size)
@@ -253,6 +254,7 @@ static void finish_chunk(AVFormatContext *s, int length)
 
 static int write_stream_codec_info(AVFormatContext *s, AVStream *st)
 {
+    WtvContext *wctx = s->priv_data;
     const ff_asf_guid *g, *media_type, *format_type;
     AVIOContext *pb = s->pb;
     int64_t  hdr_pos_start;
@@ -284,8 +286,13 @@ static int write_stream_codec_info(AVFormatContext *s, AVStream *st)
     
     hdr_pos_start = avio_tell(pb);
     if (st->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
-        write_pad(pb, 72); // aspect ratio
-        ff_put_bmp_header(pb, st->codec, ff_codec_bmp_tags, 0);
+        if (wctx->first_video_flag) {
+            write_pad(pb, 216); //The size is sensitive.
+            wctx->first_video_flag = 0;
+        } else {
+            write_pad(pb, 72); // aspect ratio
+            ff_put_bmp_header(pb, st->codec, ff_codec_bmp_tags, 0);
+        }
     } else {
         ff_put_wav_header(pb, st->codec);
     }
@@ -301,25 +308,12 @@ static int write_stream_codec_info(AVFormatContext *s, AVStream *st)
     return 0;   
 }
 
-static void write_stream1_vid(AVFormatContext *s, int stream_id)
+static void write_stream1_video(AVFormatContext *s, int stream_id)
 {
+    WtvContext *wctx = s->priv_data;
     AVIOContext *pb = s->pb;
-    const uint8_t format[] = {
- 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0, 0x02, 0x00, 0x00,
- 0xe0, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
- 0x00, 0x00, 0x00, 0x00, 0x00, 0x1b, 0xb7, 0x00, 0x00, 0x00, 0x00, 0x00, 0xb1, 0x8b, 0x02, 0x00,
- 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00,
- 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x00, 0x00, 0x00,
- 0xc0, 0x02, 0x00, 0x00, 0xe0, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4d, 0x50, 0x45, 0x47,
- 0x00, 0x00, 0x00, 0x00, 0xd0, 0x07, 0x00, 0x00, 0x42, 0xd8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
- 0x00, 0x00, 0x00, 0x00, 0xc0, 0x27, 0xc8, 0x00, 0x4c, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
- 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0xb3, 0x2c, 0x01, 0xe0, 0x37,
- 0x1d, 0x4c, 0x23, 0x81, 0x10, 0x11, 0x11, 0x12, 0x12, 0x12, 0x13, 0x13, 0x13, 0x13, 0x14, 0x14,
- 0x14, 0x14, 0x14, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16,
- 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x18, 0x18, 0x18, 0x19, 0x18, 0x18, 0x18, 0x19,
- 0x1a, 0x1a, 0x1a, 0x1a, 0x19, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1c, 0x1c, 0x1c, 0x1c, 0x1e, 0x1e,
- 0x1e, 0x1f, 0x1f, 0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    };
+    int64_t hdr_pos_start;
+    int hdr_size = 0;
 
     write_chunk_header2(s, &stream1_guid, 0x144, 0x80000000 | stream_id);
 
@@ -327,52 +321,21 @@ static void write_stream1_vid(AVFormatContext *s, int stream_id)
     write_pad(pb, 4);
 
     write_pad(pb, 4);
-    put_guid(pb, &ff_mediatype_video);
-    put_guid(pb, &mediasubtype_cpfilters_processed);
-    avio_wl32(pb, 1); //FIXME: unknown
-    avio_wl32(pb, 1); //FIXME: unknown
-    avio_wl16(pb, 0); //FIXME: unknown
-    avio_wl16(pb, 1); //FIXME: unknown
-    put_guid(pb, &format_cpfilters_processed);
-
-    avio_wl32(pb, sizeof(format) + 32);
-    avio_write(pb, format, sizeof(format));
-    put_guid(pb, &codec_id_mpeg2video);
-    put_guid(pb, &format_mpeg2_video);
-
+    wctx->first_video_flag = 1;
+    write_stream_codec_info(s, s->streams[0]);
     finish_chunk(s, 0x144);
 }
 
-static void write_stream1(AVFormatContext *s, int stream_id)
+static void write_stream1_audio(AVFormatContext *s, int stream_id)
 {
     AVIOContext *pb = s->pb;
-    static const uint8_t x[] = {
-        0x50, 0x00, 0x02, 0x00, 0x80, 0xbb, 0x00, 0x00, 0x00, 0x7d, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00,
-        0x16, 0x00, 0x02, 0x00, 0x00, 0xe8, 0x03, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x1c, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    };
-
-    write_chunk_header2(s, &stream1_guid, 0x94, 0x80000000 | stream_id);
-
+    write_chunk_header2(s, &stream1_guid, 0x144, 0x80000000 | stream_id);
     avio_wl32(pb, stream_id);
     write_pad(pb, 4);
 
     write_pad(pb, 4);
-    put_guid(pb, &ff_mediatype_audio);
-    put_guid(pb, &mediasubtype_cpfilters_processed);
-    avio_wl32(pb, 0); //FIXME: unknown
-    avio_wl32(pb, 0); //FIXME: unknown
-    avio_wl16(pb, 0); //FIXME: unknown
-    avio_wl16(pb, 1); //FIXME: unknown
-    put_guid(pb, &format_cpfilters_processed);
-
-    avio_wl32(pb, 0x28 + 32); // size of data, plus two guids
-
-    avio_write(pb, x, sizeof(x));
-    put_guid(pb, &mp2_guid);
-    put_guid(pb, &format_waveformatex);
-
-    finish_chunk(s, 0x94);
+    write_stream_codec_info(s, s->streams[1]);
+    finish_chunk(s, 0x144);
 }
 
 static void write_sync(AVFormatContext *s)
@@ -459,11 +422,11 @@ static int write_header(AVFormatContext *s)
     wctx->last_chunk_pos = -1;
 
     // the very first chunk must be 'stream1_guid'
-    write_stream1_vid(s, 0x1);  //a video stream must be present for WMC to decode, even if there is no video stream
+    write_stream1_video(s, 0x1);  //a video stream must be present for WMC to decode, even if there is no video stream
                                 //DirectShow 'StreamBufferSource' will work without this
     write_sync(s);
 
-    write_stream1(s, 0x1);
+    write_stream1_audio(s, 0x1);
 
     for (i = 0; i < s->nb_streams; i++) {
         int ret;
