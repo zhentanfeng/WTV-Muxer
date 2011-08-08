@@ -1,7 +1,7 @@
 /*
  * Windows Television (WTV) muxer
  * Copyright (c) 2011 Zhentan Feng <spyfeng at gmail dot com>
- *
+ * Copyright (c) 2011 Peter Ross <pross@xvid.org>
  * This file is part of FFmpeg.
  *
  * FFmpeg is free software; you can redistribute it and/or
