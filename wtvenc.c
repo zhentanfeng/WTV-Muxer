@@ -475,7 +475,6 @@ static int write_table0_header_envents(AVIOContext *pb)
     avio_wl32(pb, 0x10);
     write_pad(pb, 84);
     avio_wl64(pb, 0x32);
-    //avio_write(pb, header_events, sizeof(header_events));
     return 96;
 }
 
@@ -488,7 +487,6 @@ static int write_table0_header_legacy_attrib(AVIOContext *pb)
     pad = WTV_PAD8(sizeof(legacy_attrib)) - sizeof(legacy_attrib);
     write_pad(pb, pad);
     write_pad(pb, 32);
-    //avio_write(pb, header_legacy_attrib, sizeof(header_legacy_attrib));
     return 48 + WTV_PAD8(sizeof(legacy_attrib));
 }
 
@@ -497,7 +495,6 @@ static int write_table0_header_time(AVIOContext *pb)
     avio_wl32(pb, 0x10);
     write_pad(pb, 76);
     avio_wl64(pb, 0x40);
-    //avio_write(pb, header_time, sizeof(header_time));
     return 88;
 }
 
@@ -519,8 +516,6 @@ static int write_root_table(AVFormatContext *s, int64_t sector_pos)
     int size, pad;
     int i;
 
-//    for (i = 0; i < WTV_FILES; i++)
-//        write_dir_entry(s, i);
     const WTVRootEntryTable *h = wtv_root_entry_table;
     for (i = 0; i < sizeof(wtv_root_entry_table)/sizeof(WTVRootEntryTable); i++, h++) {
         WtvFile *w = &wctx->file[i];
@@ -723,14 +718,10 @@ static int write_trailer(AVFormatContext *s)
     if (finish_file(s, WTV_TIMELINE, wctx->timeline_start_pos) < 0)
         return -1;
 
-    //finish_header(s, WTV_TIMELINE_TABLE_0_HEADER_EVENTS, header_events, sizeof(header_events));
-
     start_pos = avio_tell(pb);
     write_table_entries_events(s);
     if (finish_file(s, WTV_TIMELINE_TABLE_0_ENTRIES_EVENTS, start_pos) < 0)
         return -1;
-
-    //finish_header(s, WTV_TABLE_0_HEADER_LEGACY_ATTRIB, header_legacy_attrib, sizeof(header_legacy_attrib));
 
     start_pos = avio_tell(pb);
     write_table_entries_attrib(s);
@@ -741,8 +732,6 @@ static int write_trailer(AVFormatContext *s)
     write_table_redirector_legacy_attrib(s);
     if (finish_file(s, WTV_TABLE_0_REDIRECTOR_LEGACY_ATTRIB, start_pos) < 0)
         return -1;
-
-    //finish_header(s, WTV_TABLE_0_HEADER_TIME, header_time, sizeof(header_time));
 
     start_pos = avio_tell(pb);
     write_table_entries_time(s);
