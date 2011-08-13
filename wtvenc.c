@@ -176,13 +176,13 @@ static void write_chunk_header(AVFormatContext *s, const ff_asf_guid *guid, int 
     }
 }
 
-static void write_chunk_header2(AVFormatContext *s, const ff_asf_guid *guid, int length, int stream_id)
+static void write_chunk_header2(AVFormatContext *s, const ff_asf_guid *guid, int stream_id)
 {
     WtvContext *wctx = s->priv_data;
     AVIOContext *pb = s->pb;
 
     int64_t last_chunk_pos = wctx->last_chunk_pos;
-    write_chunk_header(s, guid, length + 8, stream_id);
+    write_chunk_header(s, guid, 0, stream_id); // lenth updated later
     avio_wl64(pb, last_chunk_pos);
 }
 
@@ -205,10 +205,9 @@ static void write_index(AVFormatContext *s)
 {
     AVIOContext *pb = s->pb;
     WtvContext *wctx = s->priv_data;
-    int chunk_len = 8 + wctx->nb_index * 0x28;
     int i;
 
-    write_chunk_header2(s, &index_guid, chunk_len, 0x80000000);
+    write_chunk_header2(s, &index_guid, 0x80000000);
     avio_wl32(pb, 0);
     avio_wl32(pb, 0);
 
@@ -224,7 +223,7 @@ static void write_index(AVFormatContext *s)
     finish_chunk_noindex(s);
 }
 
-static void finish_chunk(AVFormatContext *s, int length)
+static void finish_chunk(AVFormatContext *s)
 {
     WtvContext *wctx = s->priv_data;
     finish_chunk_noindex(s);
@@ -292,7 +291,7 @@ static int write_stream_codec(AVFormatContext *s, AVStream * st)
 {
     AVIOContext *pb = s->pb;
     int ret;
-    write_chunk_header2(s, &stream1_guid, 0x144, 0x80000000 | 0x01);
+    write_chunk_header2(s, &stream1_guid, 0x80000000 | 0x01);
 
     avio_wl32(pb,  0x01);
     write_pad(pb, 4);
@@ -304,7 +303,7 @@ static int write_stream_codec(AVFormatContext *s, AVStream * st)
         return -1;
     }
 
-    finish_chunk(s, 0);
+    finish_chunk(s);
     return 0;
 }
 
@@ -319,7 +318,7 @@ static void write_sync(AVFormatContext *s)
     avio_wl64(pb, -1); // FIXME: ??
     avio_wl64(pb, 0);  // FIXME: ??
 
-    finish_chunk(s, 0x18);
+    finish_chunk(s);
 
     wctx->last_chunk_pos = last_chunk_pos;
 }
@@ -327,27 +326,26 @@ static void write_sync(AVFormatContext *s)
 static void write_DSATTRIB_TRANSPORT_PROPERTIES_init(AVFormatContext *s, int stream_index)
 {
     AVIOContext *pb = s->pb;
-    write_chunk_header2(s, &DSATTRIB_TRANSPORT_PROPERTIES, 0x18, 0x80000000 | stream_index);
+    write_chunk_header2(s, &DSATTRIB_TRANSPORT_PROPERTIES, 0x80000000 | stream_index);
     avio_wl64(pb, stream_index);
     avio_wl64(pb, -1);
     avio_wl64(pb, 0);
-    finish_chunk(s, 0x18);
+    finish_chunk(s);
 }
 
 static int write_stream_data(AVFormatContext *s, AVStream *st, int flag)
 {
     AVIOContext *pb = s->pb;
-    int64_t  chunk_len;
     int ret;
     
     if (!flag) {
-        write_chunk_header2(s, &ff_stream_guid, 0x00/*update later*/, 0x80000000 | (st->index + INDEX_BASE));
+        write_chunk_header2(s, &ff_stream_guid, 0x80000000 | (st->index + INDEX_BASE));
         avio_wl32(pb, 0x00000001);
         avio_wl32(pb, st->index + INDEX_BASE); //stream_id
         avio_wl32(pb, 0x00000001);
         write_pad(pb, 8);
     } else {
-        write_chunk_header2(s, &stream2_guid, 0x00/*update later*/, 0x80000000 | (st->index + INDEX_BASE));
+        write_chunk_header2(s, &stream2_guid, 0x80000000 | (st->index + INDEX_BASE));
         write_pad(pb, 4);
     }
 
@@ -356,7 +354,7 @@ static int write_stream_data(AVFormatContext *s, AVStream *st, int flag)
         av_log(s, AV_LOG_ERROR, "write stream codec info failed codec_type(0x%x)\n", st->codec->codec_type);
         return -1;
     }
-    finish_chunk(s, chunk_len);
+    finish_chunk(s);
 
     av_set_pts_info(st, 64, 1, 10000000);
 
