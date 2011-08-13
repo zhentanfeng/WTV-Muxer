@@ -106,7 +106,7 @@ typedef struct {
     int64_t             serial;
     const ff_asf_guid * guid;
     int                 stream_id;
-} WtvIndexEntry;
+} WtvChunkEntry;
 
 typedef struct {
     int64_t timeline_start_pos;
@@ -115,8 +115,7 @@ typedef struct {
     int64_t last_chunk_pos;  // last chunk position
     int64_t frame_nb;
 
-    //FIXME: rename to 'header' entries or sth more meaningful
-    WtvIndexEntry index[MAX_NB_INDEX];
+    WtvChunkEntry index[MAX_NB_INDEX];
     int nb_index;
     int first_video_flag;
 } WtvContext;
@@ -167,7 +166,7 @@ static void write_chunk_header(AVFormatContext *s, const ff_asf_guid *guid, int 
     avio_wl64(pb, wctx->serial);
 
     if ((stream_id & 0x80000000) && guid != &index_guid) {
-        WtvIndexEntry *t = wctx->index + wctx->nb_index;
+        WtvChunkEntry *t = wctx->index + wctx->nb_index;
         t->pos       = wctx->last_chunk_pos;
         t->serial    = wctx->serial;
         t->guid      = guid;
@@ -212,7 +211,7 @@ static void write_index(AVFormatContext *s)
     avio_wl32(pb, 0);
 
     for (i = 0; i < wctx->nb_index; i++) {
-        WtvIndexEntry *t = wctx->index + i;
+        WtvChunkEntry *t = wctx->index + i;
         put_guid(pb,  t->guid);
         avio_wl64(pb, t->pos);
         avio_wl32(pb, t->stream_id);
