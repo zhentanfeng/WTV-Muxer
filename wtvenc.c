@@ -28,7 +28,6 @@
 // FIXME: when stable, move this stuff to wtv.h
 
 #define WTV_BIGSECTOR_SIZE (1 << WTV_BIGSECTOR_BITS)
-#define WTV_PAD8(x) (((x) + 7) & ~7)
 #define INDEX_BASE 0x2
 #define MAX_NB_INDEX 10
 
@@ -36,51 +35,24 @@
 #define _ , 0,
 static const uint8_t timeline_table_0_header_events[] =
     {'t'_'i'_'m'_'e'_'l'_'i'_'n'_'e'_'.'_'t'_'a'_'b'_'l'_'e'_'.'_'0'_'.'_'h'_'e'_'a'_'d'_'e'_'r'_'.'_'E'_'v'_'e'_'n'_'t'_'s', 0};
-static const uint8_t timeline_table_0_entries_Events_le16[] =
-    {'t'_'i'_'m'_'e'_'l'_'i'_'n'_'e'_'.'_'t'_'a'_'b'_'l'_'e'_'.'_'0'_'.'_'e'_'n'_'t'_'r'_'i'_'e'_'s'_'.'_'E'_'v'_'e'_'n'_'t'_'s', 0};
-static const uint8_t timeline_le16[] =
-    {'t'_'i'_'m'_'e'_'l'_'i'_'n'_'e', 0};
 static const uint8_t table_0_header_legacy_attrib[] =
     {'t'_'a'_'b'_'l'_'e'_'.'_'0'_'.'_'h'_'e'_'a'_'d'_'e'_'r'_'.'_'l'_'e'_'g'_'a'_'c'_'y'_'_'_'a'_'t'_'t'_'r'_'i'_'b', 0};
-static const uint8_t table_0_entries_legacy_attrib[] =
-    {'t'_'a'_'b'_'l'_'e'_'.'_'0'_'.'_'e'_'n'_'t'_'r'_'i'_'e'_'s'_'.'_'l'_'e'_'g'_'a'_'c'_'y'_'_'_'a'_'t'_'t'_'r'_'i'_'b', 0};
 static const uint8_t table_0_redirector_legacy_attrib[] =
     {'t'_'a'_'b'_'l'_'e'_'.'_'0'_'.'_'r'_'e'_'d'_'i'_'r'_'e'_'c'_'t'_'o'_'r'_'.'_'l'_'e'_'g'_'a'_'c'_'y'_'_'_'a'_'t'_'t'_'r'_'i'_'b', 0};
 static const uint8_t table_0_header_time[] =
     {'t'_'a'_'b'_'l'_'e'_'.'_'0'_'.'_'h'_'e'_'a'_'d'_'e'_'r'_'.'_'t'_'i'_'m'_'e', 0};
-static const uint8_t table_0_entries_time[] =
-    {'t'_'a'_'b'_'l'_'e'_'.'_'0'_'.'_'e'_'n'_'t'_'r'_'i'_'e'_'s'_'.'_'t'_'i'_'m'_'e', 0};
 static const uint8_t legacy_attrib[] =
     {'l'_'e'_'g'_'a'_'c'_'y'_'_'_'a'_'t'_'t'_'r'_'i'_'b', 0};
 #undef _
 
-static const ff_asf_guid DSATTRIB_TRANSPORT_PROPERTIES =
-    {0x12,0xF6,0x22,0xB6,0xAD,0x47,0x71,0x46,0xAD,0x6C,0x05,0xA9,0x8E,0x65,0xDE,0x3A};
-
 static const ff_asf_guid sub_wtv_guid =
     {0x8C,0xC3,0xD2,0xC2,0x7E,0x9A,0xDA,0x11,0x8B,0xF7,0x00,0x07,0xE9,0x5E,0xAD,0x8D};
-static const ff_asf_guid metadata_guid =
-    {0x5A,0xFE,0xD7,0x6D,0xC8,0x1D,0x8F,0x4A,0x99,0x22,0xFA,0xB1,0x1C,0x38,0x14,0x53};
 static const ff_asf_guid stream1_guid =
     {0xA1,0xC3,0xD2,0xC2,0x7E,0x9A,0xDA,0x11,0x8B,0xF7,0x00,0x07,0xE9,0x5E,0xAD,0x8D};
-static const ff_asf_guid stream2_guid =
-    {0xA2,0xC3,0xD2,0xC2,0x7E,0x9A,0xDA,0x11,0x8B,0xF7,0x00,0x07,0xE9,0x5E,0xAD,0x8D};
 static const ff_asf_guid sync_guid =
     {0x97,0xC3,0xD2,0xC2,0x7E,0x9A,0xDA,0x11,0x8B,0xF7,0x00,0x07,0xE9,0x5E,0xAD,0x8D};
 static const ff_asf_guid index_guid =
     {0x96,0xc3,0xd2,0xc2,0x7e,0x9a,0xda,0x11,0x8b,0xf7,0x00,0x07,0xe9,0x5e,0xad,0x8d};
-
-/* Media subtypes */
-static const ff_asf_guid mediasubtype_cpfilters_processed =
-    {0x28,0xBD,0xAD,0x46,0xD0,0x6F,0x96,0x47,0x93,0xB2,0x15,0x5C,0x51,0xDC,0x04,0x8D};
-
-/* Formats */
-static const ff_asf_guid format_cpfilters_processed =
-    {0x6F,0xB3,0x39,0x67,0x5F,0x1D,0xC2,0x4A,0x81,0x92,0x28,0xBB,0x0E,0x73,0xD1,0x6A};
-static const ff_asf_guid format_waveformatex =
-    {0x81,0x9F,0x58,0x05,0x56,0xC3,0xCE,0x11,0xBF,0x01,0x00,0xAA,0x00,0x55,0x59,0x5A};
-static const ff_asf_guid format_mpeg2_video =
-    {0xE3,0x80,0x6D,0xE0,0x46,0xDB,0xCF,0x11,0xB4,0xD1,0x00,0x80,0x5F,0x6C,0xBB,0xEA};
 
 enum WtvFileIndex {
     WTV_TIMELINE_TABLE_0_HEADER_EVENTS = 0,
@@ -500,10 +472,10 @@ static const WTVRootEntryTable wtv_root_entry_table[] = {
     { timeline_table_0_entries_Events_le16, sizeof(timeline_table_0_entries_Events_le16), NULL},
     { timeline_le16, sizeof(timeline_le16), NULL},
     { table_0_header_legacy_attrib, sizeof(table_0_header_legacy_attrib), write_table0_header_legacy_attrib},
-    { table_0_entries_legacy_attrib, sizeof(table_0_entries_legacy_attrib), NULL},
+    { table_0_entries_legacy_attrib_le16, sizeof(table_0_entries_legacy_attrib_le16), NULL},
     { table_0_redirector_legacy_attrib, sizeof(table_0_redirector_legacy_attrib), NULL},
     { table_0_header_time, sizeof(table_0_header_time), write_table0_header_time},
-    { table_0_entries_time, sizeof(table_0_entries_time), NULL},
+    { table_0_entries_time_le16, sizeof(table_0_entries_time_le16), NULL},
 };
 
 static int write_root_table(AVFormatContext *s, int64_t sector_pos)
