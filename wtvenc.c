@@ -463,14 +463,14 @@ static int write_table0_header_time(AVIOContext *pb)
 }
 
 static const WTVRootEntryTable wtv_root_entry_table[] = {
-    { timeline_table_0_header_events, sizeof(timeline_table_0_header_events), write_table0_header_envents},
+    { timeline_table_0_header_events,          sizeof(timeline_table_0_header_events),          write_table0_header_envents},
     { ff_timeline_table_0_entries_Events_le16, sizeof(ff_timeline_table_0_entries_Events_le16), NULL},
-    { ff_timeline_le16, sizeof(ff_timeline_le16), NULL},
-    { table_0_header_legacy_attrib, sizeof(table_0_header_legacy_attrib), write_table0_header_legacy_attrib},
-    { ff_table_0_entries_legacy_attrib_le16, sizeof(ff_table_0_entries_legacy_attrib_le16), NULL},
-    { table_0_redirector_legacy_attrib, sizeof(table_0_redirector_legacy_attrib), NULL},
-    { table_0_header_time, sizeof(table_0_header_time), write_table0_header_time},
-    { ff_table_0_entries_time_le16, sizeof(ff_table_0_entries_time_le16), NULL},
+    { ff_timeline_le16,                        sizeof(ff_timeline_le16),                        NULL},
+    { table_0_header_legacy_attrib,            sizeof(table_0_header_legacy_attrib),            write_table0_header_legacy_attrib},
+    { ff_table_0_entries_legacy_attrib_le16,   sizeof(ff_table_0_entries_legacy_attrib_le16),   NULL},
+    { table_0_redirector_legacy_attrib,        sizeof(table_0_redirector_legacy_attrib),        NULL},
+    { table_0_header_time,                     sizeof(table_0_header_time),                     write_table0_header_time},
+    { ff_table_0_entries_time_le16,            sizeof(ff_table_0_entries_time_le16),            NULL},
 };
 
 static int write_root_table(AVFormatContext *s, int64_t sector_pos)
