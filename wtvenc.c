@@ -213,11 +213,11 @@ static int write_stream_codec_info(AVFormatContext *s, AVStream *st)
     if (st->codec->codec_type  == AVMEDIA_TYPE_VIDEO) {
         g = get_codec_guid(st->codec->codec_id, ff_video_guids);
         media_type = &ff_mediatype_video;
-        format_type = &format_mpeg2_video;
+        format_type = &ff_format_mpeg2_video;
     } else if (st->codec->codec_type == AVMEDIA_TYPE_AUDIO) {
         g = get_codec_guid(st->codec->codec_id, ff_codec_wav_guids);
         media_type = &ff_mediatype_audio;
-        format_type = &format_waveformatex;
+        format_type = &ff_format_waveformatex;
     }  else {
         av_log(s, AV_LOG_ERROR, "unknown codec_type (0x%x)\n", st->codec->codec_type);
         return -1;
@@ -229,9 +229,9 @@ static int write_stream_codec_info(AVFormatContext *s, AVStream *st)
     }
 
     put_guid(pb, media_type); // mediatype
-    put_guid(pb, &mediasubtype_cpfilters_processed); // subtype
+    put_guid(pb, &ff_mediasubtype_cpfilters_processed); // subtype
     write_pad(pb, 12);
-    put_guid(pb,&format_cpfilters_processed); // format type
+    put_guid(pb,&ff_format_cpfilters_processed); // format type
     avio_wl32(pb, 0); // size
     
     hdr_pos_start = avio_tell(pb);
@@ -297,7 +297,7 @@ static void write_sync(AVFormatContext *s)
 static void write_DSATTRIB_TRANSPORT_PROPERTIES_init(AVFormatContext *s, int stream_index)
 {
     AVIOContext *pb = s->pb;
-    write_chunk_header2(s, &DSATTRIB_TRANSPORT_PROPERTIES, 0x80000000 | stream_index);
+    write_chunk_header2(s, &ff_DSATTRIB_TRANSPORT_PROPERTIES, 0x80000000 | stream_index);
     avio_wl64(pb, stream_index);
     avio_wl64(pb, -1);
     avio_wl64(pb, 0);
@@ -316,7 +316,7 @@ static int write_stream_data(AVFormatContext *s, AVStream *st, int flag)
         avio_wl32(pb, 0x00000001);
         write_pad(pb, 8);
     } else {
-        write_chunk_header2(s, &stream2_guid, 0x80000000 | (st->index + INDEX_BASE));
+        write_chunk_header2(s, &ff_stream2_guid, 0x80000000 | (st->index + INDEX_BASE));
         write_pad(pb, 4);
     }
 
@@ -469,13 +469,13 @@ static int write_table0_header_time(AVIOContext *pb)
 
 static const WTVRootEntryTable wtv_root_entry_table[] = {
     { timeline_table_0_header_events, sizeof(timeline_table_0_header_events), write_table0_header_envents},
-    { timeline_table_0_entries_Events_le16, sizeof(timeline_table_0_entries_Events_le16), NULL},
-    { timeline_le16, sizeof(timeline_le16), NULL},
+    { ff_timeline_table_0_entries_Events_le16, sizeof(ff_timeline_table_0_entries_Events_le16), NULL},
+    { ff_timeline_le16, sizeof(ff_timeline_le16), NULL},
     { table_0_header_legacy_attrib, sizeof(table_0_header_legacy_attrib), write_table0_header_legacy_attrib},
-    { table_0_entries_legacy_attrib_le16, sizeof(table_0_entries_legacy_attrib_le16), NULL},
+    { ff_table_0_entries_legacy_attrib_le16, sizeof(ff_table_0_entries_legacy_attrib_le16), NULL},
     { table_0_redirector_legacy_attrib, sizeof(table_0_redirector_legacy_attrib), NULL},
     { table_0_header_time, sizeof(table_0_header_time), write_table0_header_time},
-    { table_0_entries_time_le16, sizeof(table_0_entries_time_le16), NULL},
+    { ff_table_0_entries_time_le16, sizeof(ff_table_0_entries_time_le16), NULL},
 };
 
 static int write_root_table(AVFormatContext *s, int64_t sector_pos)
@@ -569,7 +569,7 @@ static void write_table_entries_events(AVFormatContext *s)
 
 static void write_tag(AVIOContext *pb, const char *key, const char *value)
 {
-    put_guid(pb, &metadata_guid);
+    put_guid(pb, &ff_metadata_guid);
     avio_wl32(pb, 1);
     avio_wl32(pb, strlen(value)*2 + 2);
     avio_put_str16le(pb, key);
