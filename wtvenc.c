@@ -80,8 +80,8 @@ typedef struct {
 typedef struct {
     int64_t timeline_start_pos;
     WtvFile file[WTV_FILES];
-    int64_t serial;          //chunk serial number
-    int64_t last_chunk_pos;  // last chunk position
+    int64_t serial;         //chunk serial number
+    int64_t last_chunk_pos; // last chunk position
     int64_t frame_nb;
 
     WtvChunkEntry index[MAX_NB_INDEX];
@@ -331,7 +331,9 @@ static int write_header(AVFormatContext *s)
 {
     AVIOContext *pb = s->pb;
     WtvContext *wctx = s->priv_data;
-    int i, pad;
+    int i, pad, ret;
+    AVStream *st;
+
     put_guid(pb, &ff_wtv_guid);
     put_guid(pb, &sub_wtv_guid);
 
@@ -357,8 +359,7 @@ static int write_header(AVFormatContext *s)
     wctx->first_video_flag = 1;
 
     for (i = 0; i < s->nb_streams; i++) {
-        int ret;
-        AVStream *st = s->streams[i];
+        st = s->streams[i];
         ret = write_stream_codec(s, st);
         if (ret < 0) {
             av_log(s, AV_LOG_ERROR, "write stream codec failed codec_type(0x%x)\n", st->codec->codec_type);
@@ -370,8 +371,7 @@ static int write_header(AVFormatContext *s)
     }
 
     for (i = 0; i < s->nb_streams; i++) {
-        int ret;
-        AVStream *st = s->streams[i];
+        st = s->streams[i];
         ret  = write_stream_data(s, st, 0);
         if (ret < 0) {
             av_log(s, AV_LOG_ERROR, "write stream data failed codec_type(0x%x)\n", st->codec->codec_type);
