@@ -282,9 +282,7 @@ static void write_sync(AVFormatContext *s)
     int64_t last_chunk_pos = wctx->last_chunk_pos;
 
     write_chunk_header(s, &sync_guid, 0x18, 0);
-    avio_wl64(pb, 0);  // FIXME: file-offset to previous keyframe
-    avio_wl64(pb, -1); // FIXME: ??
-    avio_wl64(pb, 0);  // FIXME: ??
+    write_pad(pb, 24);
 
     finish_chunk(s);
 
