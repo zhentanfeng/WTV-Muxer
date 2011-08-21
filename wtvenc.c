@@ -24,9 +24,6 @@
 #include "internal.h"
 #include "wtv.h"
 
-// ---
-// FIXME: when stable, move this stuff to wtv.h
-
 #define WTV_BIGSECTOR_SIZE (1 << WTV_BIGSECTOR_BITS)
 #define INDEX_BASE 0x2
 #define MAX_NB_INDEX 10
@@ -233,7 +230,7 @@ static int write_stream_codec_info(AVFormatContext *s, AVStream *st)
     write_pad(pb, 12);
     put_guid(pb,&ff_format_cpfilters_processed); // format type
     avio_wl32(pb, 0); // size
-    
+
     hdr_pos_start = avio_tell(pb);
     if (st->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
         if (wctx->first_video_flag) {
@@ -247,7 +244,7 @@ static int write_stream_codec_info(AVFormatContext *s, AVStream *st)
         ff_put_wav_header(pb, st->codec);
     }
     hdr_size = avio_tell(pb) - hdr_pos_start;
-    
+
     // seek back write hdr_size
     avio_seek(pb, -(hdr_size + 4), SEEK_CUR);
     avio_wl32(pb, hdr_size + 32);
@@ -255,7 +252,7 @@ static int write_stream_codec_info(AVFormatContext *s, AVStream *st)
     put_guid(pb, g); // actual_subtype
     put_guid(pb, format_type); // actual_formattype
 
-    return 0;   
+    return 0;
 }
 
 static int write_stream_codec(AVFormatContext *s, AVStream * st)
@@ -308,7 +305,7 @@ static int write_stream_data(AVFormatContext *s, AVStream *st, int flag)
 {
     AVIOContext *pb = s->pb;
     int ret;
-    
+
     if (!flag) {
         write_chunk_header2(s, &ff_stream_guid, 0x80000000 | (st->index + INDEX_BASE));
         avio_wl32(pb, 0x00000001);
@@ -346,12 +343,12 @@ static int write_header(AVFormatContext *s)
     avio_wl32(pb, 1 << WTV_BIGSECTOR_BITS);
 
     //write initial root fields
-    avio_wl32(pb, 0);  // root_size, update later
+    avio_wl32(pb, 0); // root_size, update later
     write_pad(pb, 4);
     avio_wl32(pb, 0); // root_sector, update it later.
 
     write_pad(pb, 32);
-    avio_wl32(pb, 0); // file ends pointer, update it later. 
+    avio_wl32(pb, 0); // file ends pointer, update it later.
 
     pad = (1 << WTV_SECTOR_BITS) - avio_tell(pb);
     write_pad(pb, pad);
