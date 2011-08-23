@@ -80,7 +80,7 @@ typedef struct {
 typedef struct {
     int64_t timeline_start_pos;
     WtvFile file[WTV_FILES];
-    int64_t serial;         //chunk serial number
+    int64_t serial;         // chunk serial number
     int64_t last_chunk_pos; // last chunk position
     int64_t frame_nb;
 
@@ -188,7 +188,7 @@ static void write_index(AVFormatContext *s)
         avio_wl32(pb, 0); // checksum?
         avio_wl64(pb, t->serial);
     }
-    wctx->nb_index = 0; // reset index
+    wctx->nb_index = 0;   // reset index
     finish_chunk_noindex(s);
 }
 
@@ -250,7 +250,7 @@ static int write_stream_codec_info(AVFormatContext *s, AVStream *st)
     avio_seek(pb, -(hdr_size + 4), SEEK_CUR);
     avio_wl32(pb, hdr_size + 32);
     avio_seek(pb, hdr_size, SEEK_CUR);
-    put_guid(pb, g); // actual_subtype
+    put_guid(pb, g);           // actual_subtype
     put_guid(pb, format_type); // actual_formattype
 
     return 0;
@@ -594,21 +594,6 @@ static void write_table_redirector_legacy_attrib(AVFormatContext *s)
     }
 }
 
-// The content can be pad as zeroes because it is not necessary for playback.
-static void write_table_entries_time(AVFormatContext *s)
-{
-    //AVIOContext *pb = s->pb;
-    //WtvContext *wctx = s->priv_data;
-
-#if 0
-    //avio_wl64(pb, 0x0);      avio_wl64(pb, 0x30);
-    //avio_wl64(pb, 0x4c4b40); avio_wl64(pb, 0x43);
-    //avio_wl64(pb, 0x7c8300); avio_wl64(pb, 0x50);
-#else
-    //FIXME: output timestamp, frame_nb pairs
-#endif
-}
-
 /**
  * Pad the remainder of a file
  * Write out fat table
@@ -697,7 +682,7 @@ static int write_trailer(AVFormatContext *s)
         return -1;
 
     start_pos = avio_tell(pb);
-    write_table_entries_time(s);
+    //FIXME: output timestamp, frame_nb pairs here.
     if (finish_file(s, WTV_TABLE_0_ENTRIES_TIME, start_pos) < 0)
         return -1;
 
