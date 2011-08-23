@@ -87,6 +87,7 @@ typedef struct {
     WtvChunkEntry index[MAX_NB_INDEX];
     int nb_index;
     int first_video_flag;
+    int64_t sync_pos;
 } WtvContext;
 
 typedef int WTVHeaderWriteFunc(AVIOContext *pb);
@@ -280,6 +281,7 @@ static void write_sync(AVFormatContext *s)
     AVIOContext *pb = s->pb;
     WtvContext *wctx = s->priv_data;
     int64_t last_chunk_pos = wctx->last_chunk_pos;
+    wctx->sync_pos = avio_tell(pb) - wctx->timeline_start_pos;;
 
     write_chunk_header(s, &sync_guid, 0x18, 0);
     write_pad(pb, 24);
@@ -550,16 +552,14 @@ static int write_fat_sector(AVFormatContext *s, int64_t start_pos, int nb_sector
     return fat;
 }
 
-// table 2
 static void write_table_entries_events(AVFormatContext *s)
 {
     AVIOContext *pb = s->pb;
-    //WtvContext *wctx = s->priv_data;
+    WtvContext *wctx = s->priv_data;
 
-    //FIXME: output frame_nb, position pairs
-    //avio_wl64(pb, 0x2);   avio_wl64(pb, 0xc0);
-    avio_wl64(pb, 0x2);   avio_wl64(pb, 0x170);
-    //avio_wl64(pb, 0x2);   avio_wl64(pb, 0x188);
+    //FIXME: output frame_nb, position pairs.
+    //We only set the first sync_chunk position here.
+    avio_wl64(pb, 0x2);   avio_wl64(pb, wctx->sync_pos);
 }
 
 static void write_tag(AVIOContext *pb, const char *key, const char *value)
@@ -594,7 +594,6 @@ static void write_table_redirector_legacy_attrib(AVFormatContext *s)
     }
 }
 
-// table 7
 // The content can be pad as zeroes because it is not necessary for playback.
 static void write_table_entries_time(AVFormatContext *s)
 {
